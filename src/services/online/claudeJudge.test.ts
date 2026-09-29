@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SharedClock } from './artifactBackend';
-import { buildJudgePrompt, interpretVerdict, parseJsonAnswer, sampleFailureReason } from './claudeJudge';
+import { buildJudgePrompt, interpretVerdict, parseJsonAnswer, sameName, sampleFailureReason } from './claudeJudge';
 
 describe('verificação pelo Claude', () => {
   it('o pedido leva a palavra e o palpite e pede JSON', () => {
@@ -39,11 +39,54 @@ describe('verificação pelo Claude', () => {
       kind: 'title',
       songs: [
         { title: 'Sem a palavra', artist: 'A', confidence: 0.9, hasWord: false },
-        { title: 'Com a palavra', artist: 'B', confidence: 0.7, hasWord: true },
+        { title: 'Com a palavra', artist: 'B', confidence: 0.8, hasWord: true },
         { title: 'Improvável', artist: 'C', confidence: 0.2, hasWord: true },
       ],
     };
     expect(interpretVerdict(verdict, 'mar', 'x').details.title).toBe('Com a palavra');
+  });
+
+  it('trecho + música do jogador: vale o trecho e aparece a música que o jogador disse, não a inventada', () => {
+    const guess = 'eu vim trocar, sua aliança de prata por essa de ouro de um ano de noivado - ze neto e cristiano';
+    const verdict = {
+      kind: 'lyrics',
+      lyricsPart: 'eu vim trocar, sua aliança de prata por essa de ouro',
+      claimedTitle: 'Um Ano de Noivado',
+      claimedArtist: 'Zé Neto & Cristiano',
+      lyricsRecognized: true,
+      lyricsConfidence: 0.8,
+      songs: [{ title: 'Aliança de Prata', artist: 'Bruno & Marrone', confidence: 0.7, hasWord: true }],
+    };
+    expect(interpretVerdict(verdict, 'prata', guess)).toEqual({
+      outcome: 'correct',
+      details: {
+        title: 'Um Ano de Noivado',
+        artist: 'Zé Neto & Cristiano',
+        excerpt: 'eu vim trocar, sua aliança de prata por essa de ouro',
+        matchedWord: 'prata',
+      },
+    });
+  });
+
+  it('sugestão do Claude que bate com o artista digitado é mostrada; sem certeza, nenhum nome aparece', () => {
+    const agreeing = {
+      kind: 'lyrics',
+      lyricsPart: 'aliança de prata',
+      claimedArtist: 'ze neto e cristiano',
+      lyricsRecognized: true,
+      lyricsConfidence: 0.9,
+      songs: [{ title: 'Um Ano de Noivado', artist: 'Zé Neto & Cristiano', confidence: 0.8, hasWord: true }],
+    };
+    expect(interpretVerdict(agreeing, 'prata', 'aliança de prata ze neto e cristiano').details.artist).toBe('Zé Neto & Cristiano');
+    const unsure = { ...agreeing, claimedArtist: null, songs: [{ ...agreeing.songs[0], confidence: 0.6 }] };
+    expect(interpretVerdict(unsure, 'prata', 'aliança de prata').details).toMatchObject({ title: null, artist: null });
+    expect(sameName('Zé Neto & Cristiano', 'ze neto e cristiano')).toBe(true);
+    expect(sameName('Bruno & Marrone', 'ze neto e cristiano')).toBe(false);
+  });
+
+  it('o trecho só é aceito se foi copiado do palpite, e sem a palavra no trecho não vale', () => {
+    const verdict = { kind: 'lyrics', lyricsPart: 'um verso inventado com prata', lyricsRecognized: true, lyricsConfidence: 0.9, songs: [] };
+    expect(interpretVerdict(verdict, 'prata', 'um verso qualquer').details.reason).toBe('lyrics_without_word');
   });
 
   it('sem a palavra, sem música ou com pouca certeza: incorreto com o motivo certo', () => {

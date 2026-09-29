@@ -171,6 +171,8 @@ function failureText(result: GuessResult | null, word: string): string {
     return `Encontramos “${result.result_song}”${artist}, mas ela não tem a palavra ${word.toUpperCase()}.`;
   }
   if (result.failure_reason === 'ambiguous') return 'Não deu para identificar a música com clareza.';
+  if (result.failure_reason === 'word_not_in_song') return `A música citada não tem a palavra ${word.toUpperCase()}.`;
+  if (result.failure_reason === 'lyrics_without_word') return `O trecho enviado não tem a palavra ${word.toUpperCase()}.`;
   return `Não encontramos uma música para “${result.text}”.`;
 }
 

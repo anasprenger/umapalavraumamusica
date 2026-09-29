@@ -5,15 +5,20 @@
  */
 import type { GuessDetails, GuessOutcome } from '@/game/online/rules';
 import { highlightWord } from '@/utils/highlight';
+import { normalizeText } from '@/utils/normalize';
 
 /** Abaixo disso a identificação é incerta demais para dar ponto. */
 const MIN_CONFIDENCE = 0.5;
+/** Nome de música sugerido pelo Claude só aparece na tela com esta certeza (ou se bater com o que o jogador disse). */
+const SHOW_TITLE_CONFIDENCE = 0.75;
 const MAX_CANDIDATES = 3;
 
 /**
- * O pedido não pede trechos de letra de volta (o Claude costuma evitar reproduzir letras e,
- * quando tenta de memória, pode inventar). Em vez disso ele lista as músicas que o palpite
- * pode estar citando, e o app decide. O trecho mostrado na tela é o que o próprio jogador digitou.
+ * O Claude responde de memória (dentro do artefato não há internet): reconhece bem trechos e
+ * títulos, mas às vezes erra ou inventa o NOME da música a partir das palavras do trecho.
+ * Por isso o pedido separa "o trecho é de uma música real?" de "qual é o nome dela?", e o app
+ * prefere mostrar a música e o artista que o próprio jogador digitou. O Claude não devolve
+ * trechos de letra: o trecho exibido é copiado do palpite.
  */
 export function buildJudgePrompt(word: string, guess: string): string {
   return [
@@ -23,32 +28,45 @@ export function buildJudgePrompt(word: string, guess: string): string {
     `Palavra sorteada: ${JSON.stringify(word)}`,
     `Palpite do jogador: ${JSON.stringify(guess)}`,
     '',
-    'Como ler o palpite: pode ser o nome da música, nome + artista, um trecho da letra ou trecho + artista.',
+    'Como ler o palpite: pode ser o nome da música, nome + artista, um trecho da letra, ou trecho + nome/artista.',
     'Trechos costumam vir de memória: aceite palavras trocadas, faltando ou fora de ordem, erros de digitação,',
     'falta de acentos e grafias do jeito que se canta ("cê", "tô", "pra", "tá"). Considere músicas reais e',
     'publicadas de qualquer época e país, com atenção especial à música brasileira (MPB, sertanejo, pagode,',
     'samba, funk, forró, axé, piseiro, rock nacional, gospel e músicas infantis).',
     '',
     'Tarefa:',
-    `1. Liste até ${MAX_CANDIDATES} músicas reais que o palpite pode estar citando, da mais provável para a menos provável.`,
-    '   Pense no título, no refrão e nos versos mais conhecidos. Se o palpite citar um artista, considere só músicas',
-    '   gravadas por ele (incluindo regravações famosas). Nunca invente músicas: se não reconhecer, deixe a lista vazia.',
-    '2. Para cada música, diga se a palavra sorteada aparece na letra ou no título. Aceite a mesma palavra com ou sem',
-    '   acento, maiúsculas ou minúsculas e no plural simples (coração/corações). Não aceite sinônimos, traduções nem',
-    '   palavras diferentes que apenas contenham a sorteada ("mar" não vale por "amar").',
-    '3. Dê a confiança (0 a 1) de que o palpite realmente se refere àquela música.',
+    '1. Separe o palpite: "lyricsPart" é a parte que é letra (copie exatamente do palpite, sem completar);',
+    '   "claimedTitle" e "claimedArtist" são o nome da música e o artista que o jogador escreveu (null se não escreveu).',
+    '2. Se houver trecho: "lyricsRecognized" diz se você reconhece esse trecho como letra de uma música real, mesmo',
+    '   sem ter certeza do nome dela, e "lyricsConfidence" (0 a 1) a certeza disso.',
+    `3. "songs": até ${MAX_CANDIDATES} músicas reais que o palpite cita, da mais provável para a menos provável. Se o jogador`,
+    '   escreveu nome ou artista, confira essa música primeiro. Só liste músicas que você tem certeza de que existem,',
+    '   com título e artista corretos; é melhor deixar a lista vazia do que chutar. Cuidado: um título formado com',
+    '   palavras do próprio trecho (ex.: chamar de "Aliança de Prata" uma música só porque o trecho fala de aliança de',
+    '   prata) quase sempre é invenção.',
+    '4. Para cada música, "hasWord" diz se a palavra sorteada aparece na letra ou no título, e "confidence" (0 a 1) a',
+    '   certeza de que é a música citada. Aceite a palavra com ou sem acento, maiúsculas ou minúsculas e no plural',
+    '   simples (coração/corações). Não aceite sinônimos, traduções nem palavras que apenas contenham a sorteada',
+    '   ("mar" não vale por "amar").',
     '',
     'Responda somente com JSON, sem reproduzir a letra, neste formato:',
-    '{"kind": "title" | "lyrics" | "unclear", "songs": [{"title": "nome oficial", "artist": "artista principal",',
-    ' "confidence": 0.9, "hasWord": true}]}',
+    '{"kind": "title" | "lyrics" | "unclear", "lyricsPart": null, "claimedTitle": null, "claimedArtist": null,',
+    ' "lyricsRecognized": false, "lyricsConfidence": 0,',
+    ' "songs": [{"title": "nome oficial", "artist": "artista principal", "confidence": 0.9, "hasWord": true}]}',
     '"kind" diz se o palpite é principalmente um título (com ou sem artista) ou um trecho da letra.',
   ].join('\n');
 }
 
 type Candidate = { title: string; artist: string | null; confidence: number; hasWord: boolean };
+type Song = { title: string | null; artist: string | null };
 
 const text = (value: unknown, max: number) =>
   typeof value === 'string' && value.trim() && value.trim().toLowerCase() !== 'null' ? value.trim().slice(0, max) : null;
+
+const numberOf = (value: unknown) => {
+  const parsed = typeof value === 'number' ? value : Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 function readCandidates(value: unknown): Candidate[] {
   if (!Array.isArray(value)) return [];
@@ -58,21 +76,54 @@ function readCandidates(value: unknown): Candidate[] {
     const song = item as Record<string, unknown>;
     const title = text(song.title, 300);
     if (!title) continue;
-    const confidence = typeof song.confidence === 'number' ? song.confidence : Number(song.confidence ?? 0);
     candidates.push({
       title,
       artist: text(song.artist, 300),
-      confidence: Number.isFinite(confidence) ? confidence : 0,
+      confidence: numberOf(song.confidence),
       hasWord: song.hasWord === true,
     });
   }
-  return candidates;
+  return candidates.sort((a, b) => b.confidence - a.confidence);
+}
+
+const FILLER = new Set(['e', 'and', 'feat', 'ft', 'part', 'com', 'the', 'de', 'da', 'do', 'a', 'o']);
+
+/** Nomes parecidos ("Zé Neto & Cristiano" × "ze neto e cristiano"), ignorando acentos e conectivos. */
+export function sameName(a: string | null, b: string | null): boolean {
+  if (!a || !b) return false;
+  const tokens = (value: string) => normalizeText(value).split(' ').filter((token) => token && !FILLER.has(token));
+  const [short, long] = [tokens(a), tokens(b)].sort((x, y) => x.length - y.length);
+  if (short.length === 0) return false;
+  const found = short.filter((token) => long.includes(token)).length;
+  return found / short.length >= 0.6;
+}
+
+/** O trecho só vale se foi mesmo copiado do palpite (o Claude não pode acrescentar letra). */
+function lyricsFromGuess(value: unknown, guess: string): string | null {
+  const part = text(value, 200);
+  if (!part) return null;
+  return normalizeText(guess).includes(normalizeText(part)) ? part : null;
+}
+
+/**
+ * Qual música mostrar: a sugerida pelo Claude se bater com o que o jogador escreveu; senão, o que o
+ * jogador escreveu; senão, a sugestão do Claude só quando ele tem bastante certeza. Nada inventado.
+ */
+function songToShow(candidates: Candidate[], claimed: Song, preferred?: Candidate): Song | null {
+  const claimedSomething = Boolean(claimed.title || claimed.artist);
+  const agrees = (song: Candidate) =>
+    song.confidence >= MIN_CONFIDENCE && (sameName(song.title, claimed.title) || sameName(song.artist, claimed.artist));
+  const agreeing = (preferred && agrees(preferred) ? preferred : undefined) ?? candidates.find(agrees);
+  if (agreeing) return agreeing;
+  if (claimedSomething) return claimed;
+  const sure = preferred ?? candidates[0];
+  return sure && sure.confidence >= SHOW_TITLE_CONFIDENCE ? sure : null;
 }
 
 /**
  * Converte a resposta do Claude no resultado do palpite (com as mesmas razões usadas pelo servidor):
- * - acerto: alguma música reconhecida com confiança tem a palavra (ou o trecho digitado, que o
- *   Claude reconheceu como daquela música, já contém a palavra);
+ * - acerto: o trecho digitado tem a palavra e o Claude o reconhece como letra de uma música real,
+ *   ou uma música reconhecida com confiança tem a palavra;
  * - erro: a música reconhecida não tem a palavra, a identificação ficou incerta ou nada foi reconhecido.
  */
 export function interpretVerdict(
@@ -83,28 +134,41 @@ export function interpretVerdict(
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { outcome: 'error', details: { reason: 'invalid_answer' } };
   }
-  const verdict = raw as { kind?: unknown; songs?: unknown };
-  const songs = readCandidates(verdict.songs).sort((a, b) => b.confidence - a.confidence);
+  const verdict = raw as Record<string, unknown>;
+  const songs = readCandidates(verdict.songs);
   const recognized = songs.filter((song) => song.confidence >= MIN_CONFIDENCE);
-  const lyricsGuess = verdict.kind === 'lyrics';
-  const guessHasWord = highlightWord(guess, word).some((segment) => segment.highlight);
+  const claimed: Song = { title: text(verdict.claimedTitle, 300), artist: text(verdict.claimedArtist, 300) };
+  const hasWord = (value: string) => highlightWord(value, word).some((segment) => segment.highlight);
 
-  const winner = recognized.find((song) => song.hasWord || (lyricsGuess && guessHasWord));
-  if (winner) {
+  const lyrics = lyricsFromGuess(verdict.lyricsPart, guess) ?? (verdict.kind === 'lyrics' ? guess : null);
+  const lyricsWithWord = lyrics && hasWord(lyrics) ? lyrics : null;
+  const lyricsRecognized =
+    (verdict.lyricsRecognized === true && numberOf(verdict.lyricsConfidence) >= MIN_CONFIDENCE) ||
+    (verdict.kind === 'lyrics' && recognized.length > 0);
+
+  const winner = recognized.find((song) => song.hasWord);
+  if ((lyricsWithWord && lyricsRecognized) || winner) {
+    const song = songToShow(songs, claimed, winner);
     return {
       outcome: 'correct',
       details: {
-        title: winner.title,
-        artist: winner.artist,
+        title: song?.title ?? null,
+        artist: song?.artist ?? null,
         // O trecho exibido é o que o jogador digitou, quando ele mostra a palavra.
-        excerpt: lyricsGuess && guessHasWord ? guess : null,
+        excerpt: lyricsWithWord,
         matchedWord: word,
       },
     };
   }
   const best = recognized[0];
-  if (best) return { outcome: 'incorrect', details: { title: best.title, artist: best.artist, reason: 'word_not_in_song' } };
-  if (songs.length > 0) return { outcome: 'incorrect', details: { reason: 'ambiguous' } };
+  if (best) {
+    const song = songToShow(songs, claimed, best);
+    return { outcome: 'incorrect', details: { title: song?.title ?? null, artist: song?.artist ?? null, reason: 'word_not_in_song' } };
+  }
+  if (lyrics && !lyricsWithWord && lyricsRecognized) {
+    return { outcome: 'incorrect', details: { reason: 'lyrics_without_word' } };
+  }
+  if (songs.length > 0 || verdict.lyricsRecognized === true) return { outcome: 'incorrect', details: { reason: 'ambiguous' } };
   return { outcome: 'incorrect', details: { reason: 'no_match' } };
 }
 
