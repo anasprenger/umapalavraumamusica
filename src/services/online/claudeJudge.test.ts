@@ -11,39 +11,54 @@ describe('verificação pelo Claude', () => {
     expect(prompt).toContain('JSON');
   });
 
-  it('música encontrada com a palavra: acerto, com o trecho só se ele mostrar a palavra', () => {
+  it('título reconhecido com a palavra: acerto, sem inventar trecho', () => {
     const verdict = {
-      songFound: true,
-      title: 'Garota de Ipanema',
-      artist: 'Tom Jobim',
-      wordInSong: true,
-      excerpt: 'Olha que coisa mais linda, mais cheia de graça',
-      confidence: 0.95,
+      kind: 'title',
+      songs: [{ title: 'Garota de Ipanema', artist: 'Tom Jobim', confidence: 0.95, hasWord: true }],
     };
-    expect(interpretVerdict(verdict, 'graça')).toEqual({
+    expect(interpretVerdict(verdict, 'graça', 'garota de ipanema')).toEqual({
       outcome: 'correct',
-      details: {
-        title: 'Garota de Ipanema',
-        artist: 'Tom Jobim',
-        excerpt: 'Olha que coisa mais linda, mais cheia de graça',
-        matchedWord: 'graça',
-      },
+      details: { title: 'Garota de Ipanema', artist: 'Tom Jobim', excerpt: null, matchedWord: 'graça' },
     });
-    expect(interpretVerdict(verdict, 'mar').details.excerpt).toBeNull();
+  });
+
+  it('trecho reconhecido: o trecho digitado aparece como destaque, mesmo que o Claude hesite sobre a palavra', () => {
+    const guess = 'olha que coisa mais linda mais cheia de graça';
+    const verdict = {
+      kind: 'lyrics',
+      songs: [{ title: 'Garota de Ipanema', artist: 'Tom Jobim', confidence: 0.8, hasWord: false }],
+    };
+    expect(interpretVerdict(verdict, 'graça', guess)).toMatchObject({
+      outcome: 'correct',
+      details: { title: 'Garota de Ipanema', excerpt: guess },
+    });
+  });
+
+  it('entre várias candidatas, vale a mais provável que tem a palavra', () => {
+    const verdict = {
+      kind: 'title',
+      songs: [
+        { title: 'Sem a palavra', artist: 'A', confidence: 0.9, hasWord: false },
+        { title: 'Com a palavra', artist: 'B', confidence: 0.7, hasWord: true },
+        { title: 'Improvável', artist: 'C', confidence: 0.2, hasWord: true },
+      ],
+    };
+    expect(interpretVerdict(verdict, 'mar', 'x').details.title).toBe('Com a palavra');
   });
 
   it('sem a palavra, sem música ou com pouca certeza: incorreto com o motivo certo', () => {
-    const base = { songFound: true, title: 'Asa Branca', artist: 'Luiz Gonzaga', confidence: 0.9 };
-    expect(interpretVerdict({ ...base, wordInSong: false }, 'mar')).toMatchObject({
+    const song = { title: 'Asa Branca', artist: 'Luiz Gonzaga', confidence: 0.9, hasWord: false };
+    expect(interpretVerdict({ kind: 'title', songs: [song] }, 'mar', 'asa branca')).toMatchObject({
       outcome: 'incorrect',
       details: { reason: 'word_not_in_song', title: 'Asa Branca' },
     });
-    expect(interpretVerdict({ songFound: false }, 'mar').details.reason).toBe('no_match');
-    expect(interpretVerdict({ ...base, wordInSong: true, confidence: 0.3 }, 'mar').details.reason).toBe('ambiguous');
+    expect(interpretVerdict({ kind: 'unclear', songs: [] }, 'mar', 'xyz').details.reason).toBe('no_match');
+    const unsure = { kind: 'lyrics', songs: [{ ...song, confidence: 0.3, hasWord: true }] };
+    expect(interpretVerdict(unsure, 'mar', 'o mar').details.reason).toBe('ambiguous');
   });
 
   it('resposta sem formato ou falha do pedido não contam como rodada', () => {
-    expect(interpretVerdict('talvez', 'mar').outcome).toBe('error');
+    expect(interpretVerdict('talvez', 'mar', 'x').outcome).toBe('error');
     expect(sampleFailureReason({ code: 'not_granted' })).toBe('ai_not_allowed');
     expect(sampleFailureReason({ code: 'rate_limited' })).toBe('ai_rate_limited');
     expect(sampleFailureReason({ code: 'capability_removed' })).toBe('ai_unavailable');

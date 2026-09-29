@@ -103,6 +103,9 @@ function Verifying({ name, text }: { name?: string; text?: string }) {
           {`“${text}”`}
         </AppText>
       ) : null}
+      <AppText variant="footnote" color={colors.onPrimarySecondary} align="center">
+        Conferindo título, artista e letra. Pode levar alguns segundos.
+      </AppText>
     </View>
   );
 }

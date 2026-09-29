@@ -470,7 +470,8 @@ export function createArtifactBackend(runtime: ArtifactRuntime): OnlineBackend {
   async function askClaude(prompt: string): Promise<unknown> {
     const sample = runtime.sample;
     if (!sample) throw { code: 'capability_disabled' };
-    const options = { modelTier: 'default' as const };
+    // O modelo mais capaz reconhece bem mais títulos e trechos (principalmente de música brasileira).
+    const options = { modelTier: 'complex' as const };
     if (typeof sample.json === 'function') {
       try {
         return await sample.json(prompt, options);
@@ -501,7 +502,7 @@ export function createArtifactBackend(runtime: ArtifactRuntime): OnlineBackend {
     let details: GuessDetails;
     try {
       const answer = await askClaude(buildJudgePrompt(word, guess.text));
-      ({ outcome, details } = interpretVerdict(answer, word));
+      ({ outcome, details } = interpretVerdict(answer, word, guess.text));
     } catch (error) {
       logTechnical('sample', error);
       outcome = 'error';

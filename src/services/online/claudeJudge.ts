@@ -7,69 +7,105 @@ import type { GuessDetails, GuessOutcome } from '@/game/online/rules';
 import { highlightWord } from '@/utils/highlight';
 
 /** Abaixo disso a identificação é incerta demais para dar ponto. */
-const MIN_CONFIDENCE = 0.6;
+const MIN_CONFIDENCE = 0.5;
+const MAX_CANDIDATES = 3;
 
+/**
+ * O pedido não pede trechos de letra de volta (o Claude costuma evitar reproduzir letras e,
+ * quando tenta de memória, pode inventar). Em vez disso ele lista as músicas que o palpite
+ * pode estar citando, e o app decide. O trecho mostrado na tela é o que o próprio jogador digitou.
+ */
 export function buildJudgePrompt(word: string, guess: string): string {
   return [
-    'Você é o juiz do jogo musical brasileiro "Uma Palavra, Uma Música".',
-    'Os jogadores recebem uma palavra sorteada e precisam citar uma música que contenha essa palavra.',
+    'Você é o juiz do jogo musical brasileiro "Uma Palavra, Uma Música". A cada rodada sai uma palavra e os',
+    'jogadores citam uma música que tenha essa palavra na letra ou no título.',
     '',
     `Palavra sorteada: ${JSON.stringify(word)}`,
     `Palpite do jogador: ${JSON.stringify(guess)}`,
     '',
-    'O palpite pode ser o nome da música, nome + artista, ou um trecho da letra. Tolere erros de digitação,',
-    'falta de acentos e pequenas diferenças no trecho. Considere músicas reais e publicadas de qualquer país e época.',
+    'Como ler o palpite: pode ser o nome da música, nome + artista, um trecho da letra ou trecho + artista.',
+    'Trechos costumam vir de memória: aceite palavras trocadas, faltando ou fora de ordem, erros de digitação,',
+    'falta de acentos e grafias do jeito que se canta ("cê", "tô", "pra", "tá"). Considere músicas reais e',
+    'publicadas de qualquer época e país, com atenção especial à música brasileira (MPB, sertanejo, pagode,',
+    'samba, funk, forró, axé, piseiro, rock nacional, gospel e músicas infantis).',
     '',
-    'Decida:',
-    '1. songFound: o palpite identifica com clareza uma música real? Se houver várias, escolha a mais conhecida',
-    '   que combine com o palpite (prefira uma que contenha a palavra).',
-    '2. wordInSong: a palavra sorteada aparece na LETRA ou no TÍTULO dessa música? Aceite a mesma palavra com ou',
-    '   sem acento, em maiúsculas ou minúsculas e no plural simples (ex.: coração/corações). NÃO aceite sinônimos,',
-    '   traduções, outras palavras parecidas nem palavras que apenas contenham a sorteada ("mar" não vale por "amar").',
-    '3. Seja honesto: se não tiver certeza de que a palavra está na música, use wordInSong false e confiança baixa.',
+    'Tarefa:',
+    `1. Liste até ${MAX_CANDIDATES} músicas reais que o palpite pode estar citando, da mais provável para a menos provável.`,
+    '   Pense no título, no refrão e nos versos mais conhecidos. Se o palpite citar um artista, considere só músicas',
+    '   gravadas por ele (incluindo regravações famosas). Nunca invente músicas: se não reconhecer, deixe a lista vazia.',
+    '2. Para cada música, diga se a palavra sorteada aparece na letra ou no título. Aceite a mesma palavra com ou sem',
+    '   acento, maiúsculas ou minúsculas e no plural simples (coração/corações). Não aceite sinônimos, traduções nem',
+    '   palavras diferentes que apenas contenham a sorteada ("mar" não vale por "amar").',
+    '3. Dê a confiança (0 a 1) de que o palpite realmente se refere àquela música.',
     '',
-    'Responda somente com um objeto JSON neste formato:',
-    '{"songFound": true, "title": "nome oficial", "artist": "artista principal", "wordInSong": true,',
-    ' "excerpt": "um verso curto (no máximo 12 palavras) da música que contenha a palavra, ou null",',
-    ' "confidence": 0.9}',
+    'Responda somente com JSON, sem reproduzir a letra, neste formato:',
+    '{"kind": "title" | "lyrics" | "unclear", "songs": [{"title": "nome oficial", "artist": "artista principal",',
+    ' "confidence": 0.9, "hasWord": true}]}',
+    '"kind" diz se o palpite é principalmente um título (com ou sem artista) ou um trecho da letra.',
   ].join('\n');
 }
 
-type Verdict = {
-  songFound?: unknown;
-  title?: unknown;
-  artist?: unknown;
-  wordInSong?: unknown;
-  excerpt?: unknown;
-  confidence?: unknown;
-};
+type Candidate = { title: string; artist: string | null; confidence: number; hasWord: boolean };
 
 const text = (value: unknown, max: number) =>
   typeof value === 'string' && value.trim() && value.trim().toLowerCase() !== 'null' ? value.trim().slice(0, max) : null;
 
-/** Converte a resposta do Claude no resultado do palpite (com as mesmas razões usadas pelo servidor). */
-export function interpretVerdict(raw: unknown, word: string): { outcome: GuessOutcome; details: GuessDetails } {
+function readCandidates(value: unknown): Candidate[] {
+  if (!Array.isArray(value)) return [];
+  const candidates: Candidate[] = [];
+  for (const item of value.slice(0, MAX_CANDIDATES)) {
+    if (!item || typeof item !== 'object') continue;
+    const song = item as Record<string, unknown>;
+    const title = text(song.title, 300);
+    if (!title) continue;
+    const confidence = typeof song.confidence === 'number' ? song.confidence : Number(song.confidence ?? 0);
+    candidates.push({
+      title,
+      artist: text(song.artist, 300),
+      confidence: Number.isFinite(confidence) ? confidence : 0,
+      hasWord: song.hasWord === true,
+    });
+  }
+  return candidates;
+}
+
+/**
+ * Converte a resposta do Claude no resultado do palpite (com as mesmas razões usadas pelo servidor):
+ * - acerto: alguma música reconhecida com confiança tem a palavra (ou o trecho digitado, que o
+ *   Claude reconheceu como daquela música, já contém a palavra);
+ * - erro: a música reconhecida não tem a palavra, a identificação ficou incerta ou nada foi reconhecido.
+ */
+export function interpretVerdict(
+  raw: unknown,
+  word: string,
+  guess: string,
+): { outcome: GuessOutcome; details: GuessDetails } {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { outcome: 'error', details: { reason: 'invalid_answer' } };
   }
-  const verdict = raw as Verdict;
-  const title = text(verdict.title, 300);
-  const artist = text(verdict.artist, 300);
-  const confidence = typeof verdict.confidence === 'number' ? verdict.confidence : Number(verdict.confidence ?? 0);
+  const verdict = raw as { kind?: unknown; songs?: unknown };
+  const songs = readCandidates(verdict.songs).sort((a, b) => b.confidence - a.confidence);
+  const recognized = songs.filter((song) => song.confidence >= MIN_CONFIDENCE);
+  const lyricsGuess = verdict.kind === 'lyrics';
+  const guessHasWord = highlightWord(guess, word).some((segment) => segment.highlight);
 
-  if (verdict.songFound !== true || !title) return { outcome: 'incorrect', details: { reason: 'no_match' } };
-  if (!(confidence >= MIN_CONFIDENCE)) return { outcome: 'incorrect', details: { title, artist, reason: 'ambiguous' } };
-  if (verdict.wordInSong !== true) {
-    return { outcome: 'incorrect', details: { title, artist, reason: 'word_not_in_song' } };
+  const winner = recognized.find((song) => song.hasWord || (lyricsGuess && guessHasWord));
+  if (winner) {
+    return {
+      outcome: 'correct',
+      details: {
+        title: winner.title,
+        artist: winner.artist,
+        // O trecho exibido é o que o jogador digitou, quando ele mostra a palavra.
+        excerpt: lyricsGuess && guessHasWord ? guess : null,
+        matchedWord: word,
+      },
+    };
   }
-
-  // O trecho só aparece se realmente mostrar a palavra (senão fica só o nome da música).
-  const excerpt = text(verdict.excerpt, 200);
-  const showsWord = excerpt ? highlightWord(excerpt, word).some((segment) => segment.highlight) : false;
-  return {
-    outcome: 'correct',
-    details: { title, artist, excerpt: showsWord ? excerpt : null, matchedWord: word },
-  };
+  const best = recognized[0];
+  if (best) return { outcome: 'incorrect', details: { title: best.title, artist: best.artist, reason: 'word_not_in_song' } };
+  if (songs.length > 0) return { outcome: 'incorrect', details: { reason: 'ambiguous' } };
+  return { outcome: 'incorrect', details: { reason: 'no_match' } };
 }
 
 /**
