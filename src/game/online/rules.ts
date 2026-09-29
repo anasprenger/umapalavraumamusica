@@ -24,7 +24,8 @@ export const PHASE_MS = {
 } as const;
 
 export const MAX_PLAYERS = 10;
-export const MIN_PLAYERS = 2;
+/** O host pode começar sozinho (útil para testar); os outros entram durante a partida. */
+export const MIN_PLAYERS = 1;
 export const MAX_ROUNDS = 9999;
 export const MAX_NAME = 24;
 export const MAX_GUESS = 200;

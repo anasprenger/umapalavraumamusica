@@ -11,7 +11,7 @@ const FRIENDLY: Record<string, string> = {
   not_in_room: 'Você não está nesta sala.',
   not_active: 'Você não está ativo nesta sala. Entre novamente.',
   not_host: 'Apenas o host pode fazer isso.',
-  not_enough_players: 'São necessários pelo menos 2 jogadores para começar.',
+  not_enough_players: 'Ainda não há jogadores ativos suficientes para começar.',
   already_started: 'A partida já começou.',
   invalid_name: 'Digite seu nome.',
   invalid_rounds: 'Escolha uma quantidade de rodadas válida.',

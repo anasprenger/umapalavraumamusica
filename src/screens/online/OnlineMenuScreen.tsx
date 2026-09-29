@@ -78,7 +78,7 @@ export function OnlineMenuScreen() {
         </Animated.View>
         <Animated.View entering={enter.stagger(1)} style={styles.tips}>
           {[
-            'De 2 a 10 jogadores por sala.',
+            'Até 10 jogadores por sala. Dá para começar sozinho para testar.',
             insideClaude
               ? 'O primeiro palpite enviado é verificado pelo Claude, na conta de quem palpitou.'
               : 'O primeiro palpite enviado é verificado automaticamente.',

@@ -40,7 +40,7 @@ não é legível pelo app.
 ```mermaid
 stateDiagram-v2
   [*] --> waiting
-  waiting --> starting: host inicia (≥ 2 jogadores)
+  waiting --> starting: host inicia (sozinho ou com outros)
   starting --> playing: 3 s · sorteia a palavra
   playing --> verifying: primeiro palpite
   verifying --> correct: música confirmada (+1 ponto)

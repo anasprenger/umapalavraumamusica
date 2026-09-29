@@ -75,10 +75,21 @@ describe('salas e lobby (modo online dentro do Claude)', () => {
     expect(normalizeCode(' ab-c 234 ')).toBe('ABC234');
   });
 
-  it('só o host inicia, e com pelo menos 2 jogadores', () => {
-    expect(code(() => startGame(room(1), 'p1', T0))).toBe('not_enough_players');
+  it('só o host inicia, e pode começar sozinho para testar', () => {
     expect(code(() => startGame(room(2), 'p2', T0))).toBe('not_host');
     expect(startGame(room(2), 'p1', T0).status).toBe('starting');
+    expect(startGame(room(1), 'p1', T0).status).toBe('starting');
+  });
+
+  it('partida com um jogador só: acerto conta e "Finalizar" encerra na hora', () => {
+    let doc = playing(1);
+    doc = guess(doc, 'p1', 'correct');
+    expect(doc.players[0].score).toBe(1);
+    expect(doc.roundsPlayed).toBe(1);
+    doc = expire(expire(doc));
+    const result = requestFinish(doc, 'p1', T0 + 20_000);
+    expect(result.finished).toBe(true);
+    expect(result.doc.endReason).toBe('majority_finish');
   });
 
   it('limita a 10 jogadores ativos, dá sufixo a nomes repetidos e não duplica quem volta', () => {

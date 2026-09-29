@@ -40,7 +40,7 @@ export function LobbyView({ room, snapshot, perform, onLeave, notify }: Props) {
   const [roundsOpen, setRoundsOpen] = useState(false);
   const [rounds, setRounds] = useState<number | null>(info.configured_rounds);
   const active = players.filter((player) => player.is_active);
-  const canStart = me.is_host && active.length >= 2;
+  const alone = active.length < 2;
 
   const copy = async () => {
     try {
@@ -61,6 +61,19 @@ export function LobbyView({ room, snapshot, perform, onLeave, notify }: Props) {
     }
   };
 
+  const start = async () => {
+    if (alone) {
+      const ok = await confirmAction({
+        title: 'Começar sozinho?',
+        message:
+          'Bom para testar o jogo: seus palpites são verificados normalmente e os amigos ainda podem entrar com o código durante a partida.',
+        confirmLabel: 'Começar',
+      });
+      if (!ok) return;
+    }
+    await perform(() => room.actions.start());
+  };
+
   const kick = async (playerId: string, name: string) => {
     const ok = await confirmAction({
       title: `Remover ${name}?`,
@@ -78,10 +91,10 @@ export function LobbyView({ room, snapshot, perform, onLeave, notify }: Props) {
       footer={
         me.is_host ? (
           <>
-            <Button title="Iniciar jogo" icon="play" disabled={!canStart} onPress={() => perform(() => room.actions.start())} />
-            {!canStart ? (
+            <Button title={alone ? 'Começar sozinho' : 'Iniciar jogo'} icon="play" onPress={start} />
+            {alone ? (
               <AppText variant="footnote" color={colors.inkTertiary} align="center">
-                Aguardando pelo menos mais um jogador…
+                Sozinho dá para testar. Quem entrar depois joga a partida já em andamento.
               </AppText>
             ) : null}
           </>

@@ -53,14 +53,19 @@ describe('salas e lobby', () => {
     await rejects(api.createRoom(newUser(), '   ', 5), 'invalid_name');
   });
 
-  it('host só inicia com pelo menos 2 jogadores e só o host inicia', async () => {
+  it('só o host inicia a partida', async () => {
     const { api, users, roomId, code } = await setupRoom(pool, ['Ana']);
-    await rejects(api.start(users[0], roomId), 'not_enough_players');
     const joao = newUser();
     await api.joinRoom(joao, code, 'João');
     await rejects(api.start(joao, roomId), 'not_host');
     await api.start(users[0], roomId);
     assert.equal((await api.state(joao, roomId)).room.status, 'starting');
+  });
+
+  it('o host pode começar sozinho para testar', async () => {
+    const { api, users, roomId } = await setupRoom(pool, ['Ana']);
+    await api.start(users[0], roomId);
+    assert.equal((await api.state(users[0], roomId)).room.status, 'starting');
   });
 
   it('limita a sala a 10 jogadores ativos', async () => {
