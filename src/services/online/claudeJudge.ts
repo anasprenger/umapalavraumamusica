@@ -72,16 +72,37 @@ export function interpretVerdict(raw: unknown, word: string): { outcome: GuessOu
   };
 }
 
+/**
+ * Lê o JSON de uma resposta em texto (para apps do Claude sem `sample.json`): a resposta
+ * inteira, o conteúdo de um bloco ```json``` ou o trecho do primeiro `{` ao último `}`.
+ */
+export function parseJsonAnswer(text: string): unknown {
+  const candidates = [text, /```(?:json)?\s*([\s\S]*?)```/i.exec(text)?.[1]];
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start >= 0 && end > start) candidates.push(text.slice(start, end + 1));
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      return JSON.parse(candidate.trim());
+    } catch {
+      // tenta o próximo formato
+    }
+  }
+  return null;
+}
+
 /** Motivo amigável para uma falha do pedido ao Claude (o palpite não conta e o jogo segue). */
 export function sampleFailureReason(error: unknown): string {
   const code = (error as { code?: string } | null)?.code;
   switch (code) {
     case 'not_granted':
+      return 'ai_not_allowed';
     case 'sampling_disabled':
     case 'not_declared':
     case 'capability_disabled':
     case 'capability_removed':
-      return 'ai_not_allowed';
+      return 'ai_unavailable';
     case 'rate_limited':
       return 'ai_rate_limited';
     case 'session_expired':

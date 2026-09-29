@@ -2,6 +2,12 @@ import type { JoinResult, RoomStateResponse, SubmitGuessResult, VoteChoice } fro
 
 export type RealtimeStatus = 'connecting' | 'live' | 'offline';
 
+/**
+ * Permissão para a verificação das músicas pelo Claude (só no modo dentro do Claude):
+ * `granted` liberada · `prompt` falta autorizar · `denied` recusada · `unavailable` não funciona nesta tela.
+ */
+export type AiAccess = 'granted' | 'prompt' | 'denied' | 'unavailable';
+
 export type HeartbeatResult = { kicked: boolean; state_version: number; status: string; server_time: string };
 
 /**
@@ -29,6 +35,10 @@ export interface OnlineBackend {
   heartbeat(roomId: string): Promise<HeartbeatResult>;
   advance(roomId: string): Promise<{ state_version: number; status: string }>;
   submitGuess(roomId: string, text: string): Promise<SubmitGuessResult>;
+  /** Permissão da verificação pelo Claude; ausente quando o servidor verifica sozinho. */
+  aiAccess?(): Promise<AiAccess>;
+  /** Mostra o pedido de autorização do Claude (chamar a partir de um toque do jogador). */
+  requestAiAccess?(): Promise<AiAccess>;
   /** Avisa quando o estado da sala muda (o app então chama `getState`). */
   subscribe(roomId: string, onChange: () => void, onStatus?: (status: RealtimeStatus) => void): () => void;
 }

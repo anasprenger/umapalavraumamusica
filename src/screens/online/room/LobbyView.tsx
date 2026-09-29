@@ -16,6 +16,7 @@ import {
   Screen,
   Sheet,
 } from '@/components';
+import { useAiAccess } from '@/hooks/useAiAccess';
 import type { OnlineRoomApi } from '@/hooks/useOnlineRoom';
 import { confirmAction } from '@/services/dialogs';
 import { haptic } from '@/services/haptics';
@@ -23,6 +24,8 @@ import { colors, fontFor, radii, spacing } from '@/theme';
 import type { RoomSnapshot } from '@/types/online';
 import { playerStatus } from '@/utils/players';
 import { formatRounds } from '@/utils/format';
+
+import { AiAccessBanner } from './AiAccessBanner';
 
 type Props = {
   room: OnlineRoomApi;
@@ -41,6 +44,7 @@ export function LobbyView({ room, snapshot, perform, onLeave, notify }: Props) {
   const [rounds, setRounds] = useState<number | null>(info.configured_rounds);
   const active = players.filter((player) => player.is_active);
   const alone = active.length < 2;
+  const ai = useAiAccess();
 
   const copy = async () => {
     try {
@@ -107,6 +111,7 @@ export function LobbyView({ room, snapshot, perform, onLeave, notify }: Props) {
         )
       }>
       <View style={styles.content}>
+        <AiAccessBanner access={ai.access} onRequest={ai.request} />
         <Animated.View entering={enter.pop}>
           <Card tone="purple" style={styles.codeCard}>
             <AppText variant="overline" color={colors.onPrimarySecondary} align="center">

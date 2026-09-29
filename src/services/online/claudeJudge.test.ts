@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SharedClock } from './artifactBackend';
-import { buildJudgePrompt, interpretVerdict, sampleFailureReason } from './claudeJudge';
+import { buildJudgePrompt, interpretVerdict, parseJsonAnswer, sampleFailureReason } from './claudeJudge';
 
 describe('verificação pelo Claude', () => {
   it('o pedido leva a palavra e o palpite e pede JSON', () => {
@@ -46,7 +46,18 @@ describe('verificação pelo Claude', () => {
     expect(interpretVerdict('talvez', 'mar').outcome).toBe('error');
     expect(sampleFailureReason({ code: 'not_granted' })).toBe('ai_not_allowed');
     expect(sampleFailureReason({ code: 'rate_limited' })).toBe('ai_rate_limited');
+    expect(sampleFailureReason({ code: 'capability_removed' })).toBe('ai_unavailable');
+    expect(sampleFailureReason({ code: 'sampling_disabled' })).toBe('ai_unavailable');
     expect(sampleFailureReason(new Error('x'))).toBe('provider_unavailable');
+  });
+});
+
+describe('resposta em texto (apps do Claude sem sample.json)', () => {
+  it('lê o JSON puro, dentro de bloco de código ou no meio de uma frase', () => {
+    expect(parseJsonAnswer('{"songFound": true}')).toEqual({ songFound: true });
+    expect(parseJsonAnswer('Resultado:\n```json\n{"songFound": false}\n```')).toEqual({ songFound: false });
+    expect(parseJsonAnswer('Claro! {"confidence": 0.8} Espero ter ajudado.')).toEqual({ confidence: 0.8 });
+    expect(parseJsonAnswer('não sei')).toBeNull();
   });
 });
 

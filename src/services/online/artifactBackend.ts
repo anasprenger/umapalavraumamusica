@@ -47,9 +47,9 @@ import {
 import type { VoteChoice } from '@/types/online';
 
 import type { ArtifactRuntime, DbFailure, DocRef, DocSnapshot, NamedRoom } from './artifactRuntime';
-import { buildJudgePrompt, interpretVerdict, sampleFailureReason } from './claudeJudge';
+import { buildJudgePrompt, interpretVerdict, parseJsonAnswer, sampleFailureReason } from './claudeJudge';
 import { logTechnical, OnlineError } from './errors';
-import type { OnlineBackend, RealtimeStatus } from './types';
+import type { AiAccess, OnlineBackend, RealtimeStatus } from './types';
 
 /** Duração da trava da sala (o mínimo aceito é 1 s; ela expira sozinha). */
 const LEASE_MS = 1500;
@@ -466,6 +466,32 @@ export function createArtifactBackend(runtime: ArtifactRuntime): OnlineBackend {
     await call(() => db.doc(`${votesPath(code)}/${segment(userId)}`).set(vote));
   }
 
+  /** Pede a resposta em JSON; apps do Claude sem `sample.json` recebem texto e o jogo lê o JSON. */
+  async function askClaude(prompt: string): Promise<unknown> {
+    const sample = runtime.sample;
+    if (!sample) throw { code: 'capability_disabled' };
+    const options = { modelTier: 'default' as const };
+    if (typeof sample.json === 'function') {
+      try {
+        return await sample.json(prompt, options);
+      } catch (error) {
+        if ((error as { code?: string } | null)?.code !== 'capability_removed') throw error;
+      }
+    }
+    const { text } = await sample(prompt, options);
+    return parseJsonAnswer(text);
+  }
+
+  async function aiAccess(): Promise<AiAccess> {
+    if (!runtime.sample) return 'unavailable';
+    if (!runtime.permissions) return 'granted'; // sem o recurso de permissões: o pedido pergunta sozinho
+    try {
+      return await runtime.permissions.state('sample');
+    } catch {
+      return 'granted';
+    }
+  }
+
   /** Pergunta ao Claude se a música existe e tem a palavra; depois aplica o resultado na sala. */
   async function verifyGuess(code: string, guess: GuessDoc, word: string) {
     if (verifying.has(guess.id)) return;
@@ -474,10 +500,7 @@ export function createArtifactBackend(runtime: ArtifactRuntime): OnlineBackend {
     let outcome: GuessOutcome;
     let details: GuessDetails;
     try {
-      const sample = runtime.sample;
-      const answer = sample
-        ? await sample.json(buildJudgePrompt(word, guess.text), { modelTier: 'default' })
-        : await Promise.reject({ code: 'not_granted' });
+      const answer = await askClaude(buildJudgePrompt(word, guess.text));
       ({ outcome, details } = interpretVerdict(answer, word));
     } catch (error) {
       logTechnical('sample', error);
@@ -526,6 +549,19 @@ export function createArtifactBackend(runtime: ArtifactRuntime): OnlineBackend {
 
   return {
     kind: 'claude',
+
+    aiAccess,
+
+    async requestAiAccess() {
+      if (!runtime.sample) return 'unavailable';
+      if (!runtime.permissions) return 'granted';
+      try {
+        const states = await runtime.permissions.request(['sample']);
+        return states.sample ?? (await aiAccess());
+      } catch {
+        return aiAccess();
+      }
+    },
 
     async createRoom(name, rounds) {
       createRoom('AAAAAA', userId, name, rounds, 0); // valida nome e rodadas antes de tudo

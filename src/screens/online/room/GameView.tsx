@@ -16,6 +16,7 @@ import {
   TextField,
   WordDisplay,
 } from '@/components';
+import { useAiAccess } from '@/hooks/useAiAccess';
 import type { OnlineRoomApi } from '@/hooks/useOnlineRoom';
 import { haptic } from '@/services/haptics';
 import { friendlyMessage } from '@/services/onlineApi';
@@ -23,6 +24,7 @@ import { colors, spacing } from '@/theme';
 import type { RoomSnapshot } from '@/types/online';
 import { playerStatus } from '@/utils/players';
 
+import { AiAccessBanner } from './AiAccessBanner';
 import { FinalRoundSheet } from './FinalRoundSheet';
 import { PhaseOverlay } from './PhaseOverlay';
 import { RoomMenuSheet } from './RoomMenuSheet';
@@ -44,6 +46,8 @@ export function GameView({ room, snapshot, perform, notify, onLeave, toast }: Pr
   const [sending, setSending] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const seenResults = useRef(new Set<string>());
+  const ai = useAiAccess();
+  const { check: checkAi } = ai;
   const accepting = info.status === 'playing';
 
   // Falha técnica na verificação: aviso amigável, sem detalhes técnicos.
@@ -53,9 +57,12 @@ export function GameView({ room, snapshot, perform, notify, onLeave, toast }: Pr
     const recent =
       lastResult.verified_at && Date.parse(snapshot.server_time) - Date.parse(lastResult.verified_at) < 8000;
     if (lastResult.status === 'error' && recent) {
-      notify(verificationErrorText(lastResult.failure_reason, lastResult.player_id === me.player_id), 'warning');
+      const mine = lastResult.player_id === me.player_id;
+      notify(verificationErrorText(lastResult.failure_reason, mine), 'warning');
+      // Permissão do Claude recusada ou indisponível: atualiza o aviso com o botão de autorizar.
+      if (mine && lastResult.failure_reason?.startsWith('ai_')) void checkAi();
     }
-  }, [lastResult, snapshot.server_time, notify, me.player_id]);
+  }, [lastResult, snapshot.server_time, notify, me.player_id, checkAi]);
 
   const send = async () => {
     const text = guess.trim();
@@ -153,6 +160,8 @@ export function GameView({ room, snapshot, perform, notify, onLeave, toast }: Pr
         </>
       }>
       <View style={styles.content}>
+        <AiAccessBanner access={ai.access} onRequest={ai.request} />
+
         {room.connection === 'reconnecting' ? (
           <Banner tone="warning" icon="cloud-offline-outline" title="Reconectando…" message="Seu lugar e seus pontos estão guardados." />
         ) : null}
@@ -252,7 +261,10 @@ const styles = StyleSheet.create({
 /** Aviso quando a verificação falha (o palpite não conta e todos podem enviar de novo). */
 function verificationErrorText(reason: string | null, mine: boolean): string {
   if (mine && reason === 'ai_not_allowed') {
-    return 'Para palpitar, permita que o Claude verifique as músicas (o uso sai do seu plano).';
+    return 'Para palpitar, autorize o Claude a verificar as músicas no aviso acima (o uso sai do seu plano).';
+  }
+  if (mine && reason === 'ai_unavailable') {
+    return 'A verificação pelo Claude não funciona nesta tela. Abra o jogo pelo link em claude.ai.';
   }
   if (mine && reason === 'ai_rate_limited') return 'Seu limite de uso do Claude foi atingido. Tente mais tarde.';
   if (mine && reason === 'ai_session_expired') return 'Sua sessão no Claude expirou. Entre de novo para palpitar.';

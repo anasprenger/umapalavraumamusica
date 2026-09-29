@@ -6,11 +6,11 @@ import { createArtifactBackend } from './online/artifactBackend';
 import { loadArtifactRuntime } from './online/artifactRuntime';
 import { OnlineError } from './online/errors';
 import { createSupabaseBackend } from './online/supabaseBackend';
-import type { OnlineBackend, RealtimeStatus } from './online/types';
+import type { AiAccess, OnlineBackend, RealtimeStatus } from './online/types';
 import { supabase } from './supabase';
 
 export { friendlyMessage, OnlineError } from './online/errors';
-export type { RealtimeStatus } from './online/types';
+export type { AiAccess, RealtimeStatus } from './online/types';
 
 export type OnlineAvailability =
   | { status: 'available'; kind: OnlineBackend['kind'] }
@@ -73,6 +73,9 @@ export const onlineApi = {
   heartbeat: (roomId: string) => withBackend((b) => b.heartbeat(roomId)),
   advance: (roomId: string) => withBackend((b) => b.advance(roomId)),
   submitGuess: (roomId: string, text: string) => withBackend((b) => b.submitGuess(roomId, text)),
+  /** Permissão da verificação pelo Claude (`granted` quando o servidor verifica sozinho). */
+  aiAccess: () => withBackend<AiAccess>((b) => b.aiAccess?.() ?? Promise.resolve('granted')),
+  requestAiAccess: () => withBackend<AiAccess>((b) => b.requestAiAccess?.() ?? Promise.resolve('granted')),
 };
 
 /** Avisa quando o estado da sala muda; o app então recarrega o estado oficial. */

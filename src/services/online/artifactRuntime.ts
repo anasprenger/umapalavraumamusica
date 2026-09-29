@@ -51,8 +51,18 @@ export type ArtifactRoom = { join(name: string): Promise<NamedRoom> };
 
 export type SampleFailure = { code?: string; message?: string };
 
-export type ArtifactSample = {
-  json<T = unknown>(input: string, options?: { modelTier?: 'quick' | 'default' | 'complex' }): Promise<T>;
+type SampleOptions = { modelTier?: 'quick' | 'default' | 'complex' };
+
+/** `sample(texto)` pede uma resposta ao Claude; `json` já devolve o JSON lido (pode faltar em apps antigos). */
+export type ArtifactSample = ((input: string, options?: SampleOptions) => Promise<{ text: string }>) & {
+  json?: <T = unknown>(input: string, options?: SampleOptions) => Promise<T>;
+};
+
+export type PermissionState = 'granted' | 'prompt' | 'denied' | 'unavailable';
+
+export type ArtifactPermissions = {
+  state(name: string): Promise<PermissionState>;
+  request(names?: readonly string[]): Promise<Record<string, PermissionState>>;
 };
 
 export type ArtifactRuntime = {
@@ -60,6 +70,7 @@ export type ArtifactRuntime = {
   userId: string;
   room: ArtifactRoom | null;
   sample: ArtifactSample | null;
+  permissions: ArtifactPermissions | null;
 };
 
 /** `null`: o app não está dentro do Claude. Caso contrário, o ambiente pronto ou o motivo de não estar. */
@@ -77,11 +88,12 @@ export async function loadArtifactRuntime(): Promise<ArtifactProbe | null> {
   const host = claudeHost();
   if (!host) return null;
   const capability = <T>(name: string) => host.use(name).then((value) => (value ?? null) as T | null, () => null);
-  const [db, user, room, sample] = await Promise.all([
+  const [db, user, room, sample, permissions] = await Promise.all([
     capability<ArtifactDb>('db'),
     capability<ArtifactUser>('user'),
     capability<ArtifactRoom>('room'),
     capability<ArtifactSample>('sample'),
+    capability<ArtifactPermissions>('permissions'),
   ]);
   if (!db || !user) return { unavailable: 'claude_unavailable' };
   const userId = await user.id().catch(() => null);
@@ -89,5 +101,5 @@ export async function loadArtifactRuntime(): Promise<ArtifactProbe | null> {
   // `null` = o Claude não informou; nesse caso deixa tentar e a gravação recusada decide.
   const canWrite = await user.can('data.write').catch(() => null);
   if (canWrite === false) return { unavailable: 'no_write_access' };
-  return { runtime: { db, userId, room, sample } };
+  return { runtime: { db, userId, room, sample, permissions } };
 }
