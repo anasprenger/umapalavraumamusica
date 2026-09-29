@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
-import { friendlyMessage, onlineApi, OnlineError } from '@/services/onlineApi';
-import { subscribeToRoom } from '@/services/realtime';
+import { friendlyMessage, onlineApi, OnlineError, subscribeToRoom } from '@/services/onlineApi';
 import { storage } from '@/services/storage';
 import type { RoomSnapshot, VoteChoice } from '@/types/online';
 

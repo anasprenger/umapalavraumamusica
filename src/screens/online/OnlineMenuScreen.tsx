@@ -6,8 +6,8 @@ import Animated from 'react-native-reanimated';
 import { enter } from '@/animations';
 import { AppText, Banner, Button, Header, Screen, TextField } from '@/components';
 import { PLAYER_NAME_MAX } from '@/game/local/reducer';
+import { useOnlineAvailability } from '@/hooks/useOnlineAvailability';
 import { storage } from '@/services/storage';
-import { isOnlineConfigured } from '@/services/supabase';
 import { colors, spacing } from '@/theme';
 import { tidyName } from '@/utils/normalize';
 
@@ -15,6 +15,9 @@ import { tidyName } from '@/utils/normalize';
 export function OnlineMenuScreen() {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const availability = useOnlineAvailability();
+  const ready = availability?.status === 'available';
+  const insideClaude = availability?.status === 'available' && availability.kind === 'claude';
 
   useEffect(() => {
     storage.loadProfileName().then((saved) => {
@@ -39,23 +42,23 @@ export function OnlineMenuScreen() {
       header={<Header title="Jogar Online" subtitle="Cada jogador no seu aparelho" onBack={() => router.back()} large />}
       footer={
         <>
-          <Button title="Criar sala" icon="add-circle-outline" disabled={!isOnlineConfigured} onPress={() => go('/online/create')} />
+          <Button title="Criar sala" icon="add-circle-outline" disabled={!ready} onPress={() => go('/online/create')} />
           <Button
             title="Entrar com código"
             variant="secondary"
             icon="enter-outline"
-            disabled={!isOnlineConfigured}
+            disabled={!ready}
             onPress={() => go('/online/join')}
           />
         </>
       }>
       <View style={styles.content}>
-        {!isOnlineConfigured ? (
+        {availability?.status === 'unavailable' ? (
           <Banner
             tone="warning"
             icon="cloud-offline-outline"
-            title="Modo online ainda não disponível"
-            message="Esta versão do app ainda não está conectada ao servidor do jogo. O modo local funciona normalmente."
+            title="Modo online indisponível aqui"
+            message={`${availability.message} O modo local funciona normalmente.`}
           />
         ) : null}
         <Animated.View entering={enter.up}>
@@ -76,8 +79,13 @@ export function OnlineMenuScreen() {
         <Animated.View entering={enter.stagger(1)} style={styles.tips}>
           {[
             'De 2 a 10 jogadores por sala.',
-            'O primeiro palpite enviado é verificado automaticamente.',
+            insideClaude
+              ? 'O primeiro palpite enviado é verificado pelo Claude, na conta de quem palpitou.'
+              : 'O primeiro palpite enviado é verificado automaticamente.',
             'Cada música confirmada vale 1 ponto.',
+            ...(insideClaude
+              ? ['Os amigos entram por este mesmo link do Claude (com acesso de edição) e usam o código da sala.']
+              : []),
           ].map((text) => (
             <AppText key={text} variant="subhead" color={colors.inkSecondary}>
               {`•  ${text}`}

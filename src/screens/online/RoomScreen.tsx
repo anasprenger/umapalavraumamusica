@@ -9,7 +9,6 @@ import { useOnlineRoom } from '@/hooks/useOnlineRoom';
 import { useToast } from '@/hooks/useToast';
 import { confirmAction } from '@/services/dialogs';
 import { friendlyMessage } from '@/services/onlineApi';
-import { isOnlineConfigured } from '@/services/supabase';
 import { colors, spacing } from '@/theme';
 import { tidyName } from '@/utils/normalize';
 
@@ -52,16 +51,6 @@ export function RoomScreen() {
     await room.actions.leave();
     goHome();
   };
-
-  if (!isOnlineConfigured) {
-    return (
-      <Message
-        title="Modo online indisponível"
-        message="Esta versão do app ainda não está conectada ao servidor do jogo."
-        onBack={goHome}
-      />
-    );
-  }
 
   if (room.phase === 'needs_name') {
     return (

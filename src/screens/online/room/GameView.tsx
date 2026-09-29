@@ -53,9 +53,9 @@ export function GameView({ room, snapshot, perform, notify, onLeave, toast }: Pr
     const recent =
       lastResult.verified_at && Date.parse(snapshot.server_time) - Date.parse(lastResult.verified_at) < 8000;
     if (lastResult.status === 'error' && recent) {
-      notify('Não conseguimos verificar a música agora. Tentem enviar de novo.', 'warning');
+      notify(verificationErrorText(lastResult.failure_reason, lastResult.player_id === me.player_id), 'warning');
     }
-  }, [lastResult, snapshot.server_time, notify]);
+  }, [lastResult, snapshot.server_time, notify, me.player_id]);
 
   const send = async () => {
     const text = guess.trim();
@@ -248,3 +248,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+/** Aviso quando a verificação falha (o palpite não conta e todos podem enviar de novo). */
+function verificationErrorText(reason: string | null, mine: boolean): string {
+  if (mine && reason === 'ai_not_allowed') {
+    return 'Para palpitar, permita que o Claude verifique as músicas (o uso sai do seu plano).';
+  }
+  if (mine && reason === 'ai_rate_limited') return 'Seu limite de uso do Claude foi atingido. Tente mais tarde.';
+  if (mine && reason === 'ai_session_expired') return 'Sua sessão no Claude expirou. Entre de novo para palpitar.';
+  return 'Não conseguimos verificar a música agora. Tentem enviar de novo.';
+}

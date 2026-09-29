@@ -22,6 +22,8 @@ Rode typecheck, lint e os testes relevantes antes de concluir uma tarefa.
 - Modo local: reducer puro em `src/game/local/reducer.ts` (as palavras sorteadas chegam nas ações).
 - Modo online: o servidor decide tudo. Regras em `supabase/migrations/*_game_functions.sql`; o app usa
   `src/services/onlineApi.ts` e `src/hooks/useOnlineRoom.ts`.
+- Online dentro do Claude (artefato web): as mesmas regras em `src/game/online/rules.ts`, executadas com
+  trava no banco do artefato (`src/services/online/artifactBackend.ts`). Mudou uma regra? Mude os dois.
 - Busca musical: `supabase/functions/_shared/music/` (`MusicSearchService` + provedores). Nunca coloque
   chaves secretas no app; só `EXPO_PUBLIC_SUPABASE_URL` e a chave anon.
 

@@ -21,6 +21,11 @@ em volta do mesmo aparelho).
 O app é independente de Base44/Lovable e não depende de créditos de IA: a IA é uma segunda camada
 **opcional** para casos ambíguos.
 
+**Jogar agora, sem instalar nada:** a versão web também roda como artefato no Claude. Lá o modo online
+funciona sem servidor próprio: a sala fica no banco compartilhado do artefato e cada palpite é verificado
+pelo Claude, na conta de quem palpitou. Os amigos abrem o mesmo link (com acesso de edição) e entram com o
+código da sala. Detalhes em [docs/ARQUITETURA.md](docs/ARQUITETURA.md#modo-online-dentro-do-claude).
+
 ## Tecnologia
 
 | Parte | Tecnologia |
@@ -50,8 +55,9 @@ src/
   components/   botões, cartões, cabeçalho, contador, jogador, palavra, placar, pódio, modais…
   animations/   presets de animação, toque com escala, pulso
   hooks/        useOnlineRoom (sincronização), useLocalGame, useCountdown, useToast
-  services/     Supabase, API online, Realtime, armazenamento, haptics, diálogos
+  services/     API online (online/: Supabase ou Claude), armazenamento, haptics, diálogos
   game/local/   máquina de estados do modo local (reducer puro + testes)
+  game/online/  regras online em TypeScript (mesma lógica do SQL, usadas dentro do Claude)
   data/         banco de palavras (words.pt-BR.json)
   theme/        cores, tipografia e espaçamentos
   types/ utils/

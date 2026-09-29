@@ -162,3 +162,32 @@ MusicSearchService.verify({ guess, targetWord })
 Sem servidor: `src/game/local/reducer.ts` é uma máquina de estados pura (`setup → playing ⇄
 celebrating → finished`) com as mesmas regras de contagem de rodadas (“Tentativa errada” registra uma
 tentativa; pular sem tentativa não conta). O estado é salvo no aparelho para continuar depois.
+
+## Modo online dentro do Claude
+
+Quando a versão web é aberta como artefato no Claude (`window.claude` existe), o app usa outro
+backend com a **mesma interface** (`src/services/online/types.ts`), escolhido em
+`src/services/onlineApi.ts`:
+
+```text
+App (web, dentro do Claude)
+  ├── db ──── rooms/<CÓDIGO> (estado da sala) · rooms/<CÓDIGO>/votes/<jogador> (voto de cada um)
+  ├── room ── presença na sala "upum-<código>" (quem está conectado)
+  ├── user ── id estável de cada pessoa (reconexão sem duplicar jogador)
+  └── sample ─ verificação da música pelo Claude, na conta de quem palpitou
+```
+
+- **Regras:** `src/game/online/rules.ts` é a mesma máquina de estados das funções SQL, em TypeScript puro
+  e com testes (`rules.test.ts`). Ao mudar uma regra online, mude os dois lados.
+- **Quem decide:** não há servidor. Toda alteração da sala acontece com uma trava curta no documento
+  (`acquire`): o aparelho trava, lê, aplica a regra e grava. Dois palpites simultâneos viram fila e só o
+  primeiro é aceito, como no `select … for update` do Postgres.
+- **Relógio:** os prazos (3 s etc.) usam um relógio compartilhado estimado pelo horário do servidor que
+  vem na trava (`SharedClock`), então aparelhos com relógios diferentes veem os mesmos prazos.
+- **Juiz:** o jogador ativo mais antigo que está presente (normalmente o host) avança os prazos e marca
+  como desconectado quem sumiu da presença por 30 s. Se ele cair, os demais assumem depois de 1,5 s.
+- **Verificação:** `src/services/online/claudeJudge.ts` monta o pedido e confere a resposta (música real,
+  palavra na letra ou no título, confiança mínima). Falha ou recusa de permissão devolve `error`: o
+  palpite não conta e o jogo volta a aceitar palpites.
+- **Acesso:** só quem pode gravar no artefato joga online (dono e convidados com edição; em planos de
+  equipe, membros com acesso de colaborador). Quem só visualiza vê um aviso e pode jogar no modo local.

@@ -43,9 +43,14 @@ export function LobbyView({ room, snapshot, perform, onLeave, notify }: Props) {
   const canStart = me.is_host && active.length >= 2;
 
   const copy = async () => {
-    await Clipboard.setStringAsync(info.code);
-    haptic('success');
-    notify('Código copiado!');
+    try {
+      await Clipboard.setStringAsync(info.code);
+      haptic('success');
+      notify('Código copiado!');
+    } catch {
+      // Alguns navegadores bloqueiam a área de transferência: mostra o código para ditar.
+      notify(`Código da sala: ${info.code}`);
+    }
   };
 
   const share = async () => {
