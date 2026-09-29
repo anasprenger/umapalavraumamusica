@@ -54,8 +54,8 @@ export function OnlineMenuScreen() {
           <Banner
             tone="warning"
             icon="cloud-offline-outline"
-            title="Modo online não configurado"
-            message="Defina EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY (veja o README). O modo local funciona normalmente."
+            title="Modo online ainda não disponível"
+            message="Esta versão do app ainda não está conectada ao servidor do jogo. O modo local funciona normalmente."
           />
         ) : null}
         <Animated.View entering={enter.up}>

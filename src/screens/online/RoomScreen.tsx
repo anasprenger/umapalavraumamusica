@@ -57,7 +57,7 @@ export function RoomScreen() {
     return (
       <Message
         title="Modo online indisponível"
-        message="Este app ainda não foi conectado a um servidor Supabase."
+        message="Esta versão do app ainda não está conectada ao servidor do jogo."
         onBack={goHome}
       />
     );

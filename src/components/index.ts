@@ -4,6 +4,7 @@ export { Banner } from './Banner';
 export { Button } from './Button';
 export { Card } from './Card';
 export { CountdownNumber } from './CountdownNumber';
+export { DialogHost } from './DialogHost';
 export { Header } from './Header';
 export { HighlightedExcerpt } from './HighlightedExcerpt';
 export { Icon } from './Icon';

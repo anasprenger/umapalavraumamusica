@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { DialogHost } from '@/components/DialogHost';
 import { LocalGameProvider } from '@/game/local/LocalGameProvider';
 import { colors } from '@/theme';
 
@@ -44,6 +45,7 @@ export default function RootLayout() {
           <Stack.Screen name="local/podium" options={{ gestureEnabled: false, animation: 'fade' }} />
           <Stack.Screen name="online/room/[code]" options={{ gestureEnabled: false }} />
         </Stack>
+        <DialogHost />
       </LocalGameProvider>
     </SafeAreaProvider>
   );
