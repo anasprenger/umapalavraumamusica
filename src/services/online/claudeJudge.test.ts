@@ -1,107 +1,121 @@
 import { describe, expect, it } from 'vitest';
 
 import { SharedClock } from './artifactBackend';
-import { buildJudgePrompt, interpretVerdict, parseJsonAnswer, sameName, sampleFailureReason } from './claudeJudge';
+import {
+  buildConfirmPrompt,
+  buildJudgePrompt,
+  interpretConfirmation,
+  parseJsonAnswer,
+  planJudgement,
+  sameName,
+  sampleFailureReason,
+} from './claudeJudge';
 
-describe('verificação pelo Claude', () => {
-  it('o pedido leva a palavra e o palpite e pede JSON', () => {
+const PRATA_GUESS = 'eu vim trocar, sua aliança de prata por essa de ouro de um ano de noivado - ze neto e cristiano';
+const PRATA_LYRICS = 'eu vim trocar, sua aliança de prata por essa de ouro';
+
+describe('verificação pelo Claude: de qual música é o palpite', () => {
+  it('os pedidos levam a palavra e o palpite e pedem JSON', () => {
     const prompt = buildJudgePrompt('coração', 'Evidências');
     expect(prompt).toContain('"coração"');
     expect(prompt).toContain('"Evidências"');
     expect(prompt).toContain('JSON');
+    const confirm = buildConfirmPrompt('prata', PRATA_GUESS, { title: 'Um Ano de Noivado', artist: 'Zé Neto & Cristiano' });
+    expect(confirm).toContain('"Um Ano de Noivado"');
+    expect(confirm).toContain('"Zé Neto & Cristiano"');
   });
 
-  it('título reconhecido com a palavra: acerto, sem inventar trecho', () => {
-    const verdict = {
-      kind: 'title',
-      songs: [{ title: 'Garota de Ipanema', artist: 'Tom Jobim', confidence: 0.95, hasWord: true }],
-    };
-    expect(interpretVerdict(verdict, 'graça', 'garota de ipanema')).toEqual({
-      outcome: 'correct',
-      details: { title: 'Garota de Ipanema', artist: 'Tom Jobim', excerpt: null, matchedWord: 'graça' },
-    });
-  });
-
-  it('trecho reconhecido: o trecho digitado aparece como destaque, mesmo que o Claude hesite sobre a palavra', () => {
-    const guess = 'olha que coisa mais linda mais cheia de graça';
-    const verdict = {
-      kind: 'lyrics',
-      songs: [{ title: 'Garota de Ipanema', artist: 'Tom Jobim', confidence: 0.8, hasWord: false }],
-    };
-    expect(interpretVerdict(verdict, 'graça', guess)).toMatchObject({
-      outcome: 'correct',
-      details: { title: 'Garota de Ipanema', excerpt: guess },
-    });
-  });
-
-  it('entre várias candidatas, vale a mais provável que tem a palavra', () => {
-    const verdict = {
-      kind: 'title',
-      songs: [
-        { title: 'Sem a palavra', artist: 'A', confidence: 0.9, hasWord: false },
-        { title: 'Com a palavra', artist: 'B', confidence: 0.8, hasWord: true },
-        { title: 'Improvável', artist: 'C', confidence: 0.2, hasWord: true },
-      ],
-    };
-    expect(interpretVerdict(verdict, 'mar', 'x').details.title).toBe('Com a palavra');
-  });
-
-  it('trecho + música do jogador: vale o trecho e aparece a música que o jogador disse, não a inventada', () => {
-    const guess = 'eu vim trocar, sua aliança de prata por essa de ouro de um ano de noivado - ze neto e cristiano';
-    const verdict = {
-      kind: 'lyrics',
-      lyricsPart: 'eu vim trocar, sua aliança de prata por essa de ouro',
-      claimedTitle: 'Um Ano de Noivado',
-      claimedArtist: 'Zé Neto & Cristiano',
-      lyricsRecognized: true,
-      lyricsConfidence: 0.8,
-      songs: [{ title: 'Aliança de Prata', artist: 'Bruno & Marrone', confidence: 0.7, hasWord: true }],
-    };
-    expect(interpretVerdict(verdict, 'prata', guess)).toEqual({
-      outcome: 'correct',
-      details: {
-        title: 'Um Ano de Noivado',
-        artist: 'Zé Neto & Cristiano',
-        excerpt: 'eu vim trocar, sua aliança de prata por essa de ouro',
-        matchedWord: 'prata',
+  it('jogador disse a música: confere exatamente a música dita, mesmo que o Claude tenha sugerido outra', () => {
+    const plan = planJudgement(
+      {
+        kind: 'lyrics',
+        lyricsPart: PRATA_LYRICS,
+        claimedTitle: 'Um Ano de Noivado',
+        claimedArtist: 'Zé Neto & Cristiano',
+        songs: [{ title: 'Aliança de Prata', artist: 'Bruno & Marrone', confidence: 0.8, hasWord: true }],
       },
-    });
+      'prata',
+      PRATA_GUESS,
+    );
+    expect(plan).toEqual({ confirm: { title: 'Um Ano de Noivado', artist: 'Zé Neto & Cristiano' }, lyrics: PRATA_LYRICS });
   });
 
-  it('sugestão do Claude que bate com o artista digitado é mostrada; sem certeza, nenhum nome aparece', () => {
-    const agreeing = {
+  it('trecho sem música identificada não vale (ninguém pode inventar música)', () => {
+    const plan = planJudgement({ kind: 'lyrics', lyricsPart: 'um verso com prata', songs: [] }, 'prata', 'um verso com prata');
+    expect(plan).toEqual({ result: { outcome: 'incorrect', details: { reason: 'no_match', title: null, artist: null } } });
+    const unsure = planJudgement(
+      { kind: 'lyrics', songs: [{ title: 'Talvez', artist: 'Alguém', confidence: 0.4, hasWord: true }] },
+      'prata',
+      'um verso com prata',
+    );
+    expect('result' in unsure && unsure.result.details.reason).toBe('ambiguous');
+  });
+
+  it('sem nome dito: confere a música mais provável que tem a palavra', () => {
+    const plan = planJudgement(
+      {
+        kind: 'title',
+        songs: [
+          { title: 'Sem a palavra', artist: 'A', confidence: 0.9, hasWord: false },
+          { title: 'Com a palavra', artist: 'B', confidence: 0.7, hasWord: true },
+        ],
+      },
+      'mar',
+      'x',
+    );
+    expect(plan).toMatchObject({ confirm: { title: 'Com a palavra', artist: 'B' } });
+    const without = planJudgement(
+      { kind: 'title', songs: [{ title: 'Asa Branca', artist: 'Luiz Gonzaga', confidence: 0.9, hasWord: false }] },
+      'mar',
+      'asa branca',
+    );
+    expect(without).toMatchObject({ result: { details: { reason: 'word_not_in_song', title: 'Asa Branca' } } });
+  });
+
+  it('só o artista dito: vale a música desse artista; de outro artista não', () => {
+    const verdict = {
       kind: 'lyrics',
       lyricsPart: 'aliança de prata',
       claimedArtist: 'ze neto e cristiano',
-      lyricsRecognized: true,
-      lyricsConfidence: 0.9,
-      songs: [{ title: 'Um Ano de Noivado', artist: 'Zé Neto & Cristiano', confidence: 0.8, hasWord: true }],
+      songs: [{ title: 'Outra', artist: 'Bruno & Marrone', confidence: 0.9, hasWord: true }],
     };
-    expect(interpretVerdict(agreeing, 'prata', 'aliança de prata ze neto e cristiano').details.artist).toBe('Zé Neto & Cristiano');
-    const unsure = { ...agreeing, claimedArtist: null, songs: [{ ...agreeing.songs[0], confidence: 0.6 }] };
-    expect(interpretVerdict(unsure, 'prata', 'aliança de prata').details).toMatchObject({ title: null, artist: null });
+    expect(planJudgement(verdict, 'prata', 'aliança de prata ze neto e cristiano')).toMatchObject({
+      result: { details: { reason: 'no_match' } },
+    });
     expect(sameName('Zé Neto & Cristiano', 'ze neto e cristiano')).toBe(true);
     expect(sameName('Bruno & Marrone', 'ze neto e cristiano')).toBe(false);
   });
+});
 
-  it('o trecho só é aceito se foi copiado do palpite, e sem a palavra no trecho não vale', () => {
-    const verdict = { kind: 'lyrics', lyricsPart: 'um verso inventado com prata', lyricsRecognized: true, lyricsConfidence: 0.9, songs: [] };
-    expect(interpretVerdict(verdict, 'prata', 'um verso qualquer').details.reason).toBe('lyrics_without_word');
-  });
+describe('verificação pelo Claude: segunda conferência', () => {
+  const song = { title: 'Um Ano de Noivado', artist: 'Zé Neto & Cristiano' };
 
-  it('sem a palavra, sem música ou com pouca certeza: incorreto com o motivo certo', () => {
-    const song = { title: 'Asa Branca', artist: 'Luiz Gonzaga', confidence: 0.9, hasWord: false };
-    expect(interpretVerdict({ kind: 'title', songs: [song] }, 'mar', 'asa branca')).toMatchObject({
-      outcome: 'incorrect',
-      details: { reason: 'word_not_in_song', title: 'Asa Branca' },
+  it('música existe, o trecho é dela e tem a palavra: ponto, com o trecho digitado em destaque', () => {
+    const answer = { exists: true, matches: true, hasWord: true, confidence: 0.85 };
+    expect(interpretConfirmation(answer, 'prata', song, PRATA_LYRICS)).toEqual({
+      outcome: 'correct',
+      details: { title: song.title, artist: song.artist, excerpt: PRATA_LYRICS, matchedWord: 'prata' },
     });
-    expect(interpretVerdict({ kind: 'unclear', songs: [] }, 'mar', 'xyz').details.reason).toBe('no_match');
-    const unsure = { kind: 'lyrics', songs: [{ ...song, confidence: 0.3, hasWord: true }] };
-    expect(interpretVerdict(unsure, 'mar', 'o mar').details.reason).toBe('ambiguous');
   });
 
-  it('resposta sem formato ou falha do pedido não contam como rodada', () => {
-    expect(interpretVerdict('talvez', 'mar', 'x').outcome).toBe('error');
+  it('música inexistente, trecho de outra música ou sem certeza: não vale', () => {
+    const base = { exists: true, matches: true, hasWord: true, confidence: 0.9 };
+    expect(interpretConfirmation({ ...base, exists: false }, 'prata', song, null).details.reason).toBe('song_not_found');
+    expect(interpretConfirmation({ ...base, confidence: 0.5 }, 'prata', song, null).details.reason).toBe('song_not_found');
+    expect(interpretConfirmation({ ...base, matches: false }, 'prata', song, null).details.reason).toBe('song_mismatch');
+    expect(interpretConfirmation({ ...base, hasWord: false }, 'prata', song, null).details.reason).toBe('word_not_in_song');
+    expect(interpretConfirmation('talvez', 'prata', song, null).outcome).toBe('error');
+  });
+
+  it('sem artista dito, usa o artista confirmado pelo Claude', () => {
+    const answer = { exists: true, artist: 'Chitãozinho & Xororó', matches: true, hasWord: true, confidence: 0.95 };
+    expect(interpretConfirmation(answer, 'coração', { title: 'Evidências', artist: null }, null).details).toMatchObject({
+      title: 'Evidências',
+      artist: 'Chitãozinho & Xororó',
+    });
+  });
+
+  it('falhas do pedido ao Claude não contam como rodada', () => {
     expect(sampleFailureReason({ code: 'not_granted' })).toBe('ai_not_allowed');
     expect(sampleFailureReason({ code: 'rate_limited' })).toBe('ai_rate_limited');
     expect(sampleFailureReason({ code: 'capability_removed' })).toBe('ai_unavailable');

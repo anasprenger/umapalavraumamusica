@@ -186,9 +186,14 @@ App (web, dentro do Claude)
   vem na trava (`SharedClock`), então aparelhos com relógios diferentes veem os mesmos prazos.
 - **Juiz:** o jogador ativo mais antigo que está presente (normalmente o host) avança os prazos e marca
   como desconectado quem sumiu da presença por 30 s. Se ele cair, os demais assumem depois de 1,5 s.
-- **Verificação:** `src/services/online/claudeJudge.ts` pede ao Claude (modelo mais capaz) até 3 músicas reais
-  que o palpite pode estar citando, com a confiança e se cada uma tem a palavra; o app decide. O Claude
-  não devolve trechos de letra (evita letras inventadas): o trecho exibido é o que o jogador digitou.
-  Falha ou recusa de permissão devolve `error`: o palpite não conta e o jogo volta a aceitar palpites.
+- **Verificação:** `src/services/online/claudeJudge.ts`. Só vale se o jogo souber **de qual música** é o palpite
+  (título e artista), para ninguém inventar música. São duas perguntas ao Claude (modelo mais capaz):
+  1. identificar: de quais músicas reais o palpite pode ser e o que o jogador disse ser título/artista;
+     se o jogador disse o título, é essa música que será conferida;
+  2. conferir: uma pergunta separada só sobre a música escolhida (existe? o palpite é dela? tem a palavra?).
+  Sem música identificada, ou sem as duas respostas positivas, o palpite não vale. O Claude não devolve trechos
+  de letra: o trecho exibido é o que o jogador digitou. Falha ou recusa de permissão devolve `error`: o palpite
+  não conta e o jogo volta a aceitar palpites. Limite: sem internet no artefato, o Claude responde de memória e
+  pode não reconhecer músicas pouco conhecidas; uma base de letras exige o backend com servidor.
 - **Acesso:** só quem pode gravar no artefato joga online (dono e convidados com edição; em planos de
   equipe, membros com acesso de colaborador). Quem só visualiza vê um aviso e pode jogar no modo local.

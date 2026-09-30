@@ -47,7 +47,14 @@ import {
 import type { VoteChoice } from '@/types/online';
 
 import type { ArtifactRuntime, DbFailure, DocRef, DocSnapshot, NamedRoom } from './artifactRuntime';
-import { buildJudgePrompt, interpretVerdict, parseJsonAnswer, sampleFailureReason } from './claudeJudge';
+import {
+  buildConfirmPrompt,
+  buildJudgePrompt,
+  interpretConfirmation,
+  parseJsonAnswer,
+  planJudgement,
+  sampleFailureReason,
+} from './claudeJudge';
 import { logTechnical, OnlineError } from './errors';
 import type { AiAccess, OnlineBackend, RealtimeStatus } from './types';
 
@@ -493,7 +500,7 @@ export function createArtifactBackend(runtime: ArtifactRuntime): OnlineBackend {
     }
   }
 
-  /** Pergunta ao Claude se a música existe e tem a palavra; depois aplica o resultado na sala. */
+  /** Pergunta ao Claude de qual música é o palpite, confere essa música e aplica o resultado na sala. */
   async function verifyGuess(code: string, guess: GuessDoc, word: string) {
     if (verifying.has(guess.id)) return;
     verifying.add(guess.id);
@@ -501,8 +508,14 @@ export function createArtifactBackend(runtime: ArtifactRuntime): OnlineBackend {
     let outcome: GuessOutcome;
     let details: GuessDetails;
     try {
-      const answer = await askClaude(buildJudgePrompt(word, guess.text));
-      ({ outcome, details } = interpretVerdict(answer, word, guess.text));
+      // 1ª etapa: de qual música é o palpite? 2ª etapa: conferência separada dessa música.
+      const plan = planJudgement(await askClaude(buildJudgePrompt(word, guess.text)), word, guess.text);
+      if ('result' in plan) {
+        ({ outcome, details } = plan.result);
+      } else {
+        const answer = await askClaude(buildConfirmPrompt(word, guess.text, plan.confirm));
+        ({ outcome, details } = interpretConfirmation(answer, word, plan.confirm, plan.lyrics));
+      }
     } catch (error) {
       logTechnical('sample', error);
       outcome = 'error';

@@ -170,10 +170,14 @@ function failureText(result: GuessResult | null, word: string): string {
     const artist = result.result_artist ? ` — ${result.result_artist}` : '';
     return `Encontramos “${result.result_song}”${artist}, mas ela não tem a palavra ${word.toUpperCase()}.`;
   }
-  if (result.failure_reason === 'ambiguous') return 'Não deu para identificar a música com clareza.';
+  const song = result.result_song
+    ? `“${result.result_song}”${result.result_artist ? ` (${result.result_artist})` : ''}`
+    : null;
+  if (result.failure_reason === 'song_not_found' && song) return `Não conseguimos confirmar que ${song} existe.`;
+  if (result.failure_reason === 'song_mismatch' && song) return `Não conseguimos confirmar que isso é de ${song}.`;
+  if (result.failure_reason === 'ambiguous') return 'Não deu para identificar de qual música é.';
   if (result.failure_reason === 'word_not_in_song') return `A música citada não tem a palavra ${word.toUpperCase()}.`;
-  if (result.failure_reason === 'lyrics_without_word') return `O trecho enviado não tem a palavra ${word.toUpperCase()}.`;
-  return `Não encontramos uma música para “${result.text}”.`;
+  return `Não reconhecemos de qual música é “${result.text}”.`;
 }
 
 /** Tela 7 — Música incorreta. */
