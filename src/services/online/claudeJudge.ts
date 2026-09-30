@@ -126,7 +126,7 @@ export function sameName(a: string | null, b: string | null): boolean {
 }
 
 /** O trecho só vale se foi mesmo copiado do palpite (o Claude não pode acrescentar letra). */
-function lyricsFromGuess(value: unknown, guess: string): string | null {
+export function lyricsFromGuess(value: unknown, guess: string): string | null {
   const part = text(value, 200);
   if (!part) return null;
   return normalizeText(guess).includes(normalizeText(part)) ? part : null;

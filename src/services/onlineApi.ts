@@ -5,8 +5,10 @@ import type { VoteChoice } from '@/types/online';
 import { createArtifactBackend } from './online/artifactBackend';
 import { loadArtifactRuntime } from './online/artifactRuntime';
 import { OnlineError } from './online/errors';
+import { createFirebaseBackend } from './online/firebaseBackend';
 import { createSupabaseBackend } from './online/supabaseBackend';
 import type { AiAccess, OnlineBackend, RealtimeStatus } from './online/types';
+import { isFirebaseConfigured } from './firebase';
 import { supabase } from './supabase';
 
 export { friendlyMessage, OnlineError } from './online/errors';
@@ -23,8 +25,9 @@ let resolving: Promise<Resolved> | null = null;
 /**
  * Escolhe onde a partida online acontece:
  * 1. aberto como artefato no Claude → sala no documento compartilhado do Claude;
- * 2. app com Supabase configurado → servidor próprio;
- * 3. nenhum dos dois → modo online indisponível (o modo local continua funcionando).
+ * 2. app com Firebase configurado → Firestore + Gemini com busca no Google (plano gratuito);
+ * 3. app com Supabase configurado → servidor próprio;
+ * 4. nenhum deles → modo online indisponível (o modo local continua funcionando).
  */
 async function resolveBackend(): Promise<Resolved> {
   if (Platform.OS === 'web') {
@@ -34,6 +37,7 @@ async function resolveBackend(): Promise<Resolved> {
       return { backend: null, reason: probe.unavailable };
     }
   }
+  if (isFirebaseConfigured) return { backend: createFirebaseBackend() };
   if (supabase) return { backend: createSupabaseBackend(supabase) };
   return { backend: null, reason: 'online_not_configured' };
 }

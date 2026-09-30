@@ -5,7 +5,7 @@ import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale, Pulse } from '@/animations';
-import { AppText, CountdownNumber, HighlightedExcerpt, Icon, LogoMark, ProgressBar } from '@/components';
+import { AppText, CountdownNumber, HighlightedExcerpt, Icon, LogoMark, ProgressBar, SearchSources } from '@/components';
 import { useCountdown } from '@/hooks/useCountdown';
 import { haptic } from '@/services/haptics';
 import { colors, maxContentWidth, radii, spacing } from '@/theme';
@@ -143,6 +143,7 @@ function Correct({
         </View>
       ) : null}
       {result?.matched_excerpt ? <HighlightedExcerpt excerpt={result.matched_excerpt} word={word} /> : null}
+      <SearchSources sources={result?.sources} searchHtml={result?.search_html} />
       {result ? (
         <View style={styles.pointPill}>
           <AppText variant="subhead" weight="bold" color={colors.primaryDeep}>
@@ -195,6 +196,7 @@ function Incorrect({ result, word }: { result: GuessResult | null; word: string 
           {`Palpite de ${result.player_name}. ${failureText(result, word)}`}
         </AppText>
       ) : null}
+      <SearchSources sources={result?.sources} searchHtml={result?.search_html} />
       <AppText variant="title3" color={colors.white} align="center">
         Mais alguém tem palpite?
       </AppText>

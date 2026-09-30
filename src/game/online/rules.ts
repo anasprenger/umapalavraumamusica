@@ -76,6 +76,10 @@ export type GuessDoc = {
   matchedExcerpt: string | null;
   matchedWord: string | null;
   failureReason: string | null;
+  /** Páginas da web que confirmaram a música (verificação com busca no Google). */
+  sources?: GuessSource[] | null;
+  /** Sugestões de busca do Google que precisam aparecer junto do resultado (HTML pronto). */
+  searchHtml?: string | null;
   verifiedAt: number | null;
 };
 
@@ -115,12 +119,16 @@ export type VoteDoc = { playerId: string; key: string; choice: VoteChoice; at: n
 
 export type GuessOutcome = 'correct' | 'incorrect' | 'error';
 
+export type GuessSource = { title: string; uri: string };
+
 export type GuessDetails = {
   title?: string | null;
   artist?: string | null;
   excerpt?: string | null;
   matchedWord?: string | null;
   reason?: string | null;
+  sources?: GuessSource[] | null;
+  searchHtml?: string | null;
 };
 
 // -----------------------------------------------------------------------------
@@ -473,6 +481,8 @@ export function resolveGuess(
     resultArtist: clip(details.artist, 300),
     matchedExcerpt: clip(details.excerpt, 600),
     matchedWord: clip(details.matchedWord, 80),
+    sources: details.sources?.length ? details.sources.slice(0, 3) : null,
+    searchHtml: typeof details.searchHtml === 'string' ? details.searchHtml.slice(0, 20_000) : null,
     failureReason:
       outcome === 'correct' ? null : (clip(details.reason, 80) ?? (outcome === 'error' ? 'provider_unavailable' : 'no_match')),
   };
@@ -799,6 +809,8 @@ function toResult(doc: RoomDoc, guess: GuessDoc): GuessResult {
     matched_word: guess.matchedWord,
     failure_reason: guess.failureReason,
     verified_at: iso(guess.verifiedAt),
+    sources: guess.sources ?? null,
+    search_html: guess.searchHtml ?? null,
   };
 }
 

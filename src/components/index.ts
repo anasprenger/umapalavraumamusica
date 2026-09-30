@@ -17,6 +17,7 @@ export { Podium } from './Podium';
 export { ProgressBar } from './ProgressBar';
 export { MAX_ROUNDS, parseRounds, ROUND_PRESETS, RoundSelector } from './RoundSelector';
 export { Scoreboard } from './Scoreboard';
+export { SearchSources } from './SearchSources';
 export { Screen } from './Screen';
 export { Sheet } from './Sheet';
 export { TextField } from './TextField';

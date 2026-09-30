@@ -17,7 +17,7 @@ export type HeartbeatResult = { kicked: boolean; state_version: number; status: 
  * O identificador da sala (`roomId`) é opaco para as telas.
  */
 export interface OnlineBackend {
-  readonly kind: 'supabase' | 'claude';
+  readonly kind: 'supabase' | 'firebase' | 'claude';
   createRoom(name: string, rounds: number): Promise<JoinResult>;
   joinRoom(code: string, name: string): Promise<JoinResult>;
   getState(roomId: string): Promise<RoomStateResponse>;

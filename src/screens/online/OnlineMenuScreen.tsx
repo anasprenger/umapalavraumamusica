@@ -18,6 +18,7 @@ export function OnlineMenuScreen() {
   const availability = useOnlineAvailability();
   const ready = availability?.status === 'available';
   const insideClaude = availability?.status === 'available' && availability.kind === 'claude';
+  const withGemini = availability?.status === 'available' && availability.kind === 'firebase';
 
   useEffect(() => {
     storage.loadProfileName().then((saved) => {
@@ -81,7 +82,9 @@ export function OnlineMenuScreen() {
             'Até 10 jogadores por sala. Dá para começar sozinho para testar.',
             insideClaude
               ? 'O primeiro palpite enviado é verificado pelo Claude, na conta de quem palpitou.'
-              : 'O primeiro palpite enviado é verificado automaticamente.',
+              : withGemini
+                ? 'O primeiro palpite enviado é conferido pelo Gemini, com busca no Google.'
+                : 'O primeiro palpite enviado é verificado automaticamente.',
             'Cada música confirmada vale 1 ponto.',
             ...(insideClaude
               ? ['Os amigos entram por este mesmo link do Claude (com acesso de edição) e usam o código da sala.']

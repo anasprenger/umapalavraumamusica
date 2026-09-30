@@ -27,6 +27,7 @@ const FRIENDLY: Record<string, string> = {
   claude_unavailable: 'O modo online funciona quando o jogo é aberto pelo link do Claude, com a sua conta conectada.',
   no_identity: 'Entre na sua conta Claude para jogar online.',
   no_write_access: 'Seu acesso a este jogo é só de visualização. Peça a quem compartilhou para liberar a edição.',
+  quota_exceeded: 'O limite diário gratuito do servidor do jogo foi atingido. Tente de novo amanhã.',
   storage_full: 'O espaço de salas deste jogo acabou. Peça a quem compartilhou para criar uma cópia nova.',
   ai_unavailable: 'A verificação de músicas pelo Claude não está disponível para você agora.',
 };

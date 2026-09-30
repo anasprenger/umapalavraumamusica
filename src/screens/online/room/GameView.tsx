@@ -266,7 +266,9 @@ function verificationErrorText(reason: string | null, mine: boolean): string {
   if (mine && reason === 'ai_unavailable') {
     return 'A verificação pelo Claude não funciona nesta tela. Abra o jogo pelo link em claude.ai.';
   }
-  if (mine && reason === 'ai_rate_limited') return 'Seu limite de uso do Claude foi atingido. Tente mais tarde.';
+  if (reason === 'ai_rate_limited') return 'O limite de verificações de músicas por agora foi atingido. Tente mais tarde.';
+  if (reason === 'ai_service_unavailable') return 'A verificação de músicas está indisponível no momento.';
+  if (reason === 'not_verified') return 'Não conseguimos confirmar a música na internet. Tentem enviar de novo.';
   if (mine && reason === 'ai_session_expired') return 'Sua sessão no Claude expirou. Entre de novo para palpitar.';
   return 'Não conseguimos verificar a música agora. Tentem enviar de novo.';
 }

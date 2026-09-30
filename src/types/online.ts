@@ -77,6 +77,10 @@ export type GuessResult = {
   matched_word: string | null;
   failure_reason: string | null;
   verified_at: string | null;
+  /** Páginas que confirmaram a música (quando a verificação usa busca na web). */
+  sources?: { title: string; uri: string }[] | null;
+  /** Sugestões de busca do Google exigidas junto de resultados com busca (HTML pronto, só na web). */
+  search_html?: string | null;
 };
 
 export type RoomSnapshot = {
