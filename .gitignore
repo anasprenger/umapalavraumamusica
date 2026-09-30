@@ -51,3 +51,8 @@ example
 supabase/.branches
 supabase/.temp
 supabase/functions/.env
+
+# Firebase (logs dos emuladores)
+firebase-debug.log
+firestore-debug.log
+*-debug.log

@@ -1,0 +1,48 @@
+name: Publicar no Firebase
+
+# Publica a versão web no Firebase Hosting e as regras do Firestore.
+# Precisa do secret FIREBASE_SERVICE_ACCOUNT (conteúdo do JSON da conta de serviço do projeto).
+on:
+  push:
+    branches: [main, claude/adoring-tesla-7r3df2]
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Site e regras
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - name: Conferir credencial
+        id: credential
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "Secret FIREBASE_SERVICE_ACCOUNT ausente: nada a publicar."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.credential.outputs.ready == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.credential.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Gerar a versão web
+        if: steps.credential.outputs.ready == 'true'
+        run: |
+          npm ci
+          npx expo export --platform web --output-dir dist --clear
+      - name: Publicar (Hosting + regras do Firestore)
+        if: steps.credential.outputs.ready == 'true'
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json"
+          npx --yes firebase-tools@15 deploy --only hosting,firestore:rules \
+            --project uma-palavra-uma-musica-e3835 --non-interactive --force
