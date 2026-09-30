@@ -17,19 +17,33 @@ import { Platform } from 'react-native';
  * Firebase AI Logic para verificar as músicas). A configuração web do Firebase é pública:
  * ela identifica o projeto, e quem protege os dados são as regras do Firestore.
  */
+const PROJECT = {
+  apiKey: 'AIzaSyA5hij-Oy4J2DsvqQ9GPHUgNkbufQ_WZXA',
+  authDomain: 'uma-palavra-uma-musica-e3835.firebaseapp.com',
+  projectId: 'uma-palavra-uma-musica-e3835',
+  storageBucket: 'uma-palavra-uma-musica-e3835.firebasestorage.app',
+  messagingSenderId: '153352294699',
+  appId: '1:153352294699:web:70b24e4e4553743548f56e',
+};
+
+/**
+ * Por padrão, o projeto Firebase do jogo. As variáveis EXPO_PUBLIC_FIREBASE_* trocam de projeto
+ * (por exemplo, nos testes com os emuladores); EXPO_PUBLIC_ONLINE_BACKEND=supabase desliga o Firebase.
+ */
 const config = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || PROJECT.apiKey,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || PROJECT.authDomain,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || PROJECT.projectId,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || PROJECT.storageBucket,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || PROJECT.messagingSenderId,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || PROJECT.appId,
 };
 
 /** Só para testes locais: aponta para os emuladores do Firebase (ex.: 127.0.0.1). */
 const emulatorHost = process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST;
 
-export const isFirebaseConfigured = Boolean(config.apiKey && config.projectId && config.appId);
+export const isFirebaseConfigured =
+  process.env.EXPO_PUBLIC_ONLINE_BACKEND !== 'supabase' && Boolean(config.apiKey && config.projectId && config.appId);
 export const usesFirebaseEmulator = Boolean(emulatorHost);
 
 /** Modelo do Gemini usado na verificação (os "Flash-Lite" têm a maior cota gratuita). */
