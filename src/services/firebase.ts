@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { type FirebaseApp, getApps, initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import {
   type Auth,
   connectAuthEmulator,
@@ -46,6 +47,17 @@ export const isFirebaseConfigured =
   process.env.EXPO_PUBLIC_ONLINE_BACKEND !== 'supabase' && Boolean(config.apiKey && config.projectId && config.appId);
 export const usesFirebaseEmulator = Boolean(emulatorHost);
 
+/**
+ * App Check: o Firebase só deixa o app do jogo usar o Gemini. Com uma chave do reCAPTCHA
+ * Enterprise (EXPO_PUBLIC_RECAPTCHA_SITE_KEY) o navegador prova que é o site do jogo.
+ * Enquanto ela não existe, a FASE DE TESTES usa um "token de depuração" cadastrado no console
+ * (App Check → Apps → Gerenciar tokens de depuração). Ele fica visível no app, então deve ser
+ * trocado pela chave do reCAPTCHA antes de divulgar o jogo.
+ */
+const recaptchaSiteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
+const appCheckDebugToken =
+  process.env.EXPO_PUBLIC_APPCHECK_DEBUG_TOKEN ?? (recaptchaSiteKey ? undefined : 'e62332ff-9562-460f-9ccf-c5d676758254');
+
 /** Modelo do Gemini usado na verificação (os "Flash-Lite" têm a maior cota gratuita). */
 export const geminiModel = process.env.EXPO_PUBLIC_GEMINI_MODEL || 'gemini-3.1-flash-lite';
 
@@ -76,9 +88,27 @@ export function getFirebase(): FirebaseServices {
   if (emulatorHost) {
     connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true });
     connectFirestoreEmulator(db, emulatorHost, 8080);
+  } else {
+    startAppCheck(app);
   }
   services = { app, auth, db };
   return services;
+}
+
+function startAppCheck(app: FirebaseApp) {
+  // O App Check do SDK web depende do navegador; no app de celular fica para a versão nativa.
+  if (Platform.OS !== 'web' || (!recaptchaSiteKey && !appCheckDebugToken)) return;
+  if (appCheckDebugToken) {
+    (globalThis as { FIREBASE_APPCHECK_DEBUG_TOKEN?: string }).FIREBASE_APPCHECK_DEBUG_TOKEN = appCheckDebugToken;
+  }
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey ?? 'token-de-depuracao'),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch (error) {
+    if (__DEV__) console.warn('[firebase] App Check', error);
+  }
 }
 
 let signingIn: Promise<string> | null = null;
