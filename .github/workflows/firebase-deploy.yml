@@ -39,10 +39,21 @@ jobs:
         run: |
           npm ci
           npx expo export --platform web --output-dir dist --clear
-      - name: Publicar (Hosting + regras do Firestore)
+      - name: Preparar credencial
         if: steps.credential.outputs.ready == 'true'
         run: |
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
-          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json"
-          npx --yes firebase-tools@15 deploy --only hosting,firestore:rules \
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
+      # O site vai primeiro: não depende das permissões extras que as regras pedem.
+      - name: Publicar o site (Hosting)
+        if: steps.credential.outputs.ready == 'true'
+        run: |
+          npx --yes firebase-tools@15 deploy --only hosting \
+            --project uma-palavra-uma-musica-e3835 --non-interactive --force
+      # A conta de serviço precisa dos papéis "Consumidor do Service Usage" e "Administrador
+      # de regras do Firebase" no IAM do Google Cloud.
+      - name: Publicar as regras do Firestore
+        if: steps.credential.outputs.ready == 'true'
+        run: |
+          npx --yes firebase-tools@15 deploy --only firestore:rules \
             --project uma-palavra-uma-musica-e3835 --non-interactive --force
