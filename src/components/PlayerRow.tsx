@@ -50,9 +50,14 @@ export function PlayerRow({ name, score, isHost, isMe, inactive, statusText, tra
         ) : null}
       </View>
       {typeof score === 'number' ? (
-        <AppText variant="headline" color={onPurple ? colors.white : colors.primary} accessibilityLabel={formatPoints(score)}>
-          {score}
-        </AppText>
+        <View style={[styles.score, onPurple ? styles.scorePurple : score > 0 ? styles.scoreUp : null]}>
+          <AppText
+            variant="headline"
+            color={onPurple ? colors.white : score > 0 ? colors.goldDeep : colors.primary}
+            accessibilityLabel={formatPoints(score)}>
+            {score}
+          </AppText>
+        </View>
       ) : null}
       {trailing}
     </View>
@@ -85,12 +90,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.violet,
     borderRadius: radii.pill,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
   hostBadgePurple: {
     backgroundColor: colors.white,
+  },
+  score: {
+    minWidth: 36,
+    height: 30,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radii.pill,
+    backgroundColor: colors.lilac,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scoreUp: {
+    backgroundColor: colors.goldSoft,
+  },
+  scorePurple: {
+    backgroundColor: colors.onPrimarySurfaceStrong,
   },
 });

@@ -5,6 +5,7 @@ import { haptic } from '@/services/haptics';
 import { colors, radii, spacing } from '@/theme';
 
 import { AppText } from './AppText';
+import { Gradient } from './Gradient';
 import { Icon, type IconName } from './Icon';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'light' | 'lightGhost' | 'lightLink' | 'danger';
@@ -26,7 +27,7 @@ type Props = {
 
 const palette: Record<ButtonVariant, { bg: string; fg: string; border?: string }> = {
   primary: { bg: colors.primary, fg: colors.white },
-  secondary: { bg: colors.lilac, fg: colors.primaryDark },
+  secondary: { bg: colors.lilac, fg: colors.primaryDark, border: colors.lilacStrong },
   ghost: { bg: colors.transparent, fg: colors.primary },
   light: { bg: colors.white, fg: colors.primaryDark },
   lightGhost: { bg: colors.onPrimarySurface, fg: colors.white, border: colors.onPrimarySurfaceStrong },
@@ -53,6 +54,8 @@ export function Button({
 }: Props) {
   const { bg, fg, border } = palette[variant];
   const inactive = disabled || loading;
+  const radius = size === 'small' ? radii.pill : radii.lg;
+  const gradient = variant === 'primary';
   const iconNode = icon ? <Icon name={icon} size={size === 'small' ? 17 : 20} color={fg} /> : null;
 
   return (
@@ -72,14 +75,16 @@ export function Button({
         {
           backgroundColor: bg,
           height: heights[size],
-          borderRadius: size === 'small' ? radii.pill : radii.lg,
-          paddingHorizontal: size === 'small' ? spacing.md : spacing.xl,
+          borderRadius: radius,
+          paddingHorizontal: size === 'large' ? spacing.xl : spacing.md,
           opacity: disabled ? 0.45 : 1,
           alignSelf: fullWidth ? 'stretch' : 'auto',
         },
         border ? { borderWidth: StyleSheet.hairlineWidth * 2, borderColor: border } : null,
+        gradient && !disabled ? styles.glow : null,
         style,
       ]}>
+      {gradient ? <Gradient name="primary" style={[StyleSheet.absoluteFill, { borderRadius: radius }]} /> : null}
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
@@ -103,6 +108,9 @@ const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  glow: {
+    boxShadow: '0px 8px 20px rgba(107, 63, 224, 0.32)',
   },
   content: {
     flexDirection: 'row',

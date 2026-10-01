@@ -4,12 +4,14 @@ import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { enter } from '@/animations';
-import { AppText, Banner, Button, Header, Screen, TextField } from '@/components';
+import { AppText, Banner, Button, Card, Header, Icon, Screen, SectionTitle, TextField, type IconName } from '@/components';
 import { PLAYER_NAME_MAX } from '@/game/local/reducer';
 import { useOnlineAvailability } from '@/hooks/useOnlineAvailability';
 import { storage } from '@/services/storage';
 import { colors, spacing } from '@/theme';
 import { tidyName } from '@/utils/normalize';
+
+type Tip = { icon: IconName; bg: string; fg: string; text: string };
 
 /** Jogar Online: nome do jogador e escolha entre criar ou entrar em uma sala. */
 export function OnlineMenuScreen() {
@@ -35,6 +37,29 @@ export function OnlineMenuScreen() {
     await storage.saveProfileName(clean);
     router.push(path);
   };
+
+  const tips: Tip[] = [
+    { icon: 'people', bg: colors.lilac, fg: colors.primary, text: 'Até 10 jogadores por sala. Dá para começar sozinho para testar.' },
+    {
+      icon: 'search',
+      bg: colors.successSoft,
+      fg: colors.successDeep,
+      text: insideClaude
+        ? 'O primeiro palpite enviado é verificado pelo Claude, na conta de quem palpitou.'
+        : withGemini
+          ? 'O primeiro palpite enviado é conferido pelo Gemini, com busca no Google.'
+          : 'O primeiro palpite enviado é verificado automaticamente.',
+    },
+    { icon: 'star', bg: colors.goldSoft, fg: colors.goldDeep, text: 'Cada música confirmada vale 1 ponto.' },
+  ];
+  if (insideClaude) {
+    tips.push({
+      icon: 'link',
+      bg: colors.lilac,
+      fg: colors.primary,
+      text: 'Os amigos entram por este mesmo link do Claude (com acesso de edição) e usam o código da sala.',
+    });
+  }
 
   return (
     <Screen
@@ -77,23 +102,20 @@ export function OnlineMenuScreen() {
             error={error}
           />
         </Animated.View>
-        <Animated.View entering={enter.stagger(1)} style={styles.tips}>
-          {[
-            'Até 10 jogadores por sala. Dá para começar sozinho para testar.',
-            insideClaude
-              ? 'O primeiro palpite enviado é verificado pelo Claude, na conta de quem palpitou.'
-              : withGemini
-                ? 'O primeiro palpite enviado é conferido pelo Gemini, com busca no Google.'
-                : 'O primeiro palpite enviado é verificado automaticamente.',
-            'Cada música confirmada vale 1 ponto.',
-            ...(insideClaude
-              ? ['Os amigos entram por este mesmo link do Claude (com acesso de edição) e usam o código da sala.']
-              : []),
-          ].map((text) => (
-            <AppText key={text} variant="subhead" color={colors.inkSecondary}>
-              {`•  ${text}`}
-            </AppText>
-          ))}
+        <Animated.View entering={enter.stagger(1)}>
+          <Card style={styles.tips}>
+            <SectionTitle icon="sparkles" title="COMO FUNCIONA" />
+            {tips.map((tip) => (
+              <View key={tip.text} style={styles.tip}>
+                <View style={[styles.tipIcon, { backgroundColor: tip.bg }]}>
+                  <Icon name={tip.icon} size={16} color={tip.fg} />
+                </View>
+                <AppText variant="subhead" color={colors.inkSecondary} style={styles.flex}>
+                  {tip.text}
+                </AppText>
+              </View>
+            ))}
+          </Card>
         </Animated.View>
       </View>
     </Screen>
@@ -105,7 +127,21 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
   },
   tips: {
-    gap: spacing.xs,
-    paddingHorizontal: spacing.xxs,
+    gap: spacing.sm,
+  },
+  tip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  tipIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flex: {
+    flex: 1,
   },
 });

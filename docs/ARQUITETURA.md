@@ -159,9 +159,12 @@ MusicSearchService.verify({ guess, targetWord })
 
 ## Modo local
 
-Sem servidor: `src/game/local/reducer.ts` é uma máquina de estados pura (`setup → playing ⇄
-celebrating → finished`) com as mesmas regras de contagem de rodadas (“Tentativa errada” registra uma
-tentativa; pular sem tentativa não conta). O estado é salvo no aparelho para continuar depois.
+Sem servidor: `src/game/local/reducer.ts` é uma máquina de estados pura (`setup → playing →
+finished`) com as mesmas regras de contagem de rodadas (“Tentativa errada” registra uma tentativa;
+pular sem tentativa não conta). Para marcar um acerto, toca-se no nome de quem acertou e em “Próxima
+palavra”: o ponto e a rodada contam e a nova palavra entra direto, sem tela de comemoração. O estado é
+salvo no aparelho para continuar depois; ao sair do pódio (ou abandonar a partida pelo início), tudo
+zera, inclusive os nomes dos jogadores.
 
 ## Modo online dentro do Claude
 

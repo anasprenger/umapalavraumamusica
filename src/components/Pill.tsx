@@ -8,7 +8,7 @@ import { Icon, type IconName } from './Icon';
 type Props = {
   label: string;
   icon?: IconName;
-  tone?: 'lilac' | 'purple' | 'glass' | 'white';
+  tone?: 'lilac' | 'purple' | 'glass' | 'white' | 'gold' | 'success';
 };
 
 const tones = {
@@ -16,6 +16,8 @@ const tones = {
   purple: { bg: colors.primary, fg: colors.white },
   glass: { bg: colors.onPrimarySurface, fg: colors.white },
   white: { bg: colors.white, fg: colors.primaryDark },
+  gold: { bg: colors.goldSoft, fg: colors.goldDeep },
+  success: { bg: colors.successSoft, fg: colors.successDeep },
 } as const;
 
 /** Etiqueta compacta (ex.: "Rodada 3 de 10", código da sala). */

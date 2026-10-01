@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -10,17 +10,26 @@ import { haptic } from '@/services/haptics';
 import { colors, spacing } from '@/theme';
 import { formatRounds } from '@/utils/format';
 
-/** Tela 10 — Pódio do modo local. */
+/** Tela 10 — Pódio do modo local. Ao sair daqui, a partida e os nomes são zerados. */
 export function LocalPodiumScreen() {
-  const { state, hydrated, playAgain } = useLocalGame();
+  const { state, hydrated, reset } = useLocalGame();
+  const leaving = useRef(false);
 
   useEffect(() => {
     if (hydrated && state.phase === 'finished') haptic('success');
   }, [hydrated, state.phase]);
 
   useEffect(() => {
-    if (hydrated && state.phase !== 'finished') router.replace(state.phase === 'setup' ? '/local' : '/local/game');
+    if (!hydrated || leaving.current || state.phase === 'finished') return;
+    router.replace(state.phase === 'setup' ? '/local' : '/local/game');
   }, [hydrated, state.phase]);
+
+  const leaveTo = (target: 'setup' | 'home') => {
+    leaving.current = true;
+    reset();
+    if (target === 'setup') router.replace('/local');
+    else router.dismissTo('/');
+  };
 
   if (!hydrated || state.phase !== 'finished') return <Screen tone="purple">{null}</Screen>;
 
@@ -30,16 +39,8 @@ export function LocalPodiumScreen() {
       scroll
       footer={
         <>
-          <Button
-            title="Jogar novamente"
-            variant="light"
-            icon="refresh"
-            onPress={() => {
-              playAgain();
-              router.replace('/local/game');
-            }}
-          />
-          <Button title="Voltar ao início" variant="lightGhost" icon="home-outline" onPress={() => router.dismissTo('/')} />
+          <Button title="Nova partida" variant="light" icon="refresh" onPress={() => leaveTo('setup')} />
+          <Button title="Voltar ao início" variant="lightGhost" icon="home-outline" onPress={() => leaveTo('home')} />
         </>
       }>
       <Animated.View entering={enter.down} style={styles.header}>

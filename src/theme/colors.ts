@@ -37,6 +37,14 @@ export const colors = {
   success: '#2DB36F',
   warningSoft: '#FFF6E0',
 
+  // Acentos (tons da própria paleta para dar vida aos elementos)
+  violet: '#8A63F0',
+  lavender: '#A77BF3',
+  goldSoft: '#FFF3D1',
+  goldDeep: '#9A6A00',
+  successSoft: '#E2F6EB',
+  successDeep: '#1D7A4A',
+
   // Pódio
   gold: '#FFD66B',
   silver: '#E4E1EE',
@@ -46,16 +54,34 @@ export const colors = {
   transparent: 'transparent',
 } as const;
 
-/** Cores de avatar derivadas do roxo, para diferenciar jogadores sem poluir a interface. */
+/** Cores de avatar: roxos da paleta intercalados com lilás, dourado e pêssego do pódio. */
 export const avatarPalette = [
-  '#6B3FE0',
-  '#8A63F0',
-  '#4A23B0',
-  '#A77BF3',
-  '#5B4FD6',
-  '#7C4DDB',
-  '#3F2A9C',
-  '#9B6BE8',
+  { bg: '#6B3FE0', fg: '#FFFFFF' },
+  { bg: '#FFD66B', fg: '#2E1470' },
+  { bg: '#8A63F0', fg: '#FFFFFF' },
+  { bg: '#F2B892', fg: '#2E1470' },
+  { bg: '#4A23B0', fg: '#FFFFFF' },
+  { bg: '#DCD0FF', fg: '#4A23B0' },
+  { bg: '#2E1470', fg: '#FFD66B' },
+  { bg: '#9B6BE8', fg: '#FFFFFF' },
 ] as const;
+
+type GradientStops = readonly [string, string, ...string[]];
+
+/** Degradês da interface (sempre dentro da paleta). */
+export const gradients = {
+  /** Fundo das telas roxas: violeta claro no alto até o roxo profundo embaixo. */
+  purple: ['#7B4DEC', '#5530C6', '#2A1266'],
+  /** Fundo das telas claras: lilás no alto, quase branco embaixo. */
+  light: ['#E9E0FF', '#F5F1FF', '#FDFBFF'],
+  /** Botão principal. */
+  primary: ['#7F55F3', '#5A30CC'],
+  /** Cartão da palavra. */
+  word: ['#9064F7', '#6B3FE0', '#4A23B0'],
+  /** Destaques dourados (pontos, 1º lugar). */
+  gold: ['#FFE596', '#F5C443'],
+} as const satisfies Record<string, GradientStops>;
+
+export type GradientName = keyof typeof gradients;
 
 export type ColorName = keyof typeof colors;

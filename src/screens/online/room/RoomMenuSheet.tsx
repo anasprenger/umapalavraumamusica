@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { AppText, Button, IconButton, RoundSelector, Scoreboard, Sheet } from '@/components';
+import { AppText, Button, IconButton, RoundSelector, Scoreboard, SectionTitle, Sheet } from '@/components';
 import type { OnlineRoomApi } from '@/hooks/useOnlineRoom';
 import { confirmAction } from '@/services/dialogs';
-import { colors, spacing } from '@/theme';
+import { spacing } from '@/theme';
 import type { RoomSnapshot } from '@/types/online';
 import { playerStatus } from '@/utils/players';
 
@@ -108,9 +108,7 @@ export function RoomMenuSheet({ visible, onClose, room, snapshot, perform, onLea
       />
       {me.is_host && players.some((player) => player.id !== me.player_id && player.is_active) ? (
         <View style={styles.kick}>
-          <AppText variant="overline" color={colors.inkTertiary}>
-            REMOVER JOGADOR
-          </AppText>
+          <SectionTitle icon="person-remove" title="REMOVER JOGADOR" />
           <View style={styles.kickList}>
             {players
               .filter((player) => player.id !== me.player_id && player.is_active)

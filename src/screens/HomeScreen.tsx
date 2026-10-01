@@ -12,7 +12,7 @@ import { colors, shadows, spacing } from '@/theme';
 
 /** Tela 1 — Início: nome do jogo e as duas formas de jogar. */
 export function HomeScreen() {
-  const { state, hydrated, backToSetup } = useLocalGame();
+  const { state, hydrated, reset } = useLocalGame();
   const [lastRoom, setLastRoom] = useState<string | null>(null);
 
   useFocusEffect(
@@ -25,18 +25,19 @@ export function HomeScreen() {
     }, []),
   );
 
-  const localInProgress = hydrated && (state.phase === 'playing' || state.phase === 'celebrating');
+  const localInProgress = hydrated && state.phase === 'playing';
 
   const startLocal = async () => {
     if (localInProgress) {
       const ok = await confirmAction({
         title: 'Nova partida local?',
-        message: 'A partida local em andamento será encerrada. Os jogadores serão mantidos.',
+        message: 'A partida local em andamento será encerrada e os nomes dos jogadores, apagados.',
         confirmLabel: 'Nova partida',
       });
       if (!ok) return;
     }
-    if (state.phase !== 'setup') backToSetup();
+    // Partida encerrada (ou abandonada) não deixa nomes para a próxima.
+    if (state.phase !== 'setup') reset();
     router.push('/local');
   };
 
@@ -90,7 +91,11 @@ const styles = StyleSheet.create({
     gap: spacing.xxl,
   },
   logo: {
-    borderRadius: 27,
+    borderRadius: 32,
+    padding: 5,
+    backgroundColor: colors.onPrimarySurface,
+    borderWidth: 1.5,
+    borderColor: colors.onPrimarySurfaceStrong,
   },
   titles: {
     gap: spacing.sm,

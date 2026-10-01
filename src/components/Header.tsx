@@ -20,8 +20,8 @@ type Props = {
 /** Cabeçalho simples: voltar à esquerda, título central/grande e ações à direita. */
 export function Header({ title, subtitle, onBack, backIcon = 'chevron-back', right, tone = 'light', large = false }: Props) {
   const onPurple = tone === 'purple';
-  const textColor = onPurple ? colors.white : colors.ink;
-  const subtitleColor = onPurple ? colors.onPrimarySecondary : colors.inkSecondary;
+  const textColor = onPurple ? colors.white : colors.primaryDeep;
+  const subtitleColor = onPurple ? colors.onPrimarySecondary : colors.primary;
 
   return (
     <View style={styles.wrapper}>

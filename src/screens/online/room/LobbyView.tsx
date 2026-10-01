@@ -14,6 +14,7 @@ import {
   PlayerRow,
   RoundSelector,
   Screen,
+  SectionTitle,
   Sheet,
 } from '@/components';
 import { useAiAccess } from '@/hooks/useAiAccess';
@@ -138,14 +139,15 @@ export function LobbyView({ room, snapshot, perform, onLeave, notify }: Props) {
         ) : null}
 
         <Card style={styles.players}>
-          <View style={styles.playersHeader}>
-            <AppText variant="overline" color={colors.inkTertiary}>
-              JOGADORES
-            </AppText>
-            <AppText variant="subhead" weight="semibold" color={colors.primary}>
-              {`${active.length}/${MAX_PLAYERS}`}
-            </AppText>
-          </View>
+          <SectionTitle
+            icon="people"
+            title="JOGADORES"
+            right={
+              <AppText variant="subhead" weight="semibold" color={colors.primary}>
+                {`${active.length}/${MAX_PLAYERS}`}
+              </AppText>
+            }
+          />
           {players.map((player) => (
             <Animated.View key={player.id} entering={enter.up} exiting={exit.fade} layout={layout}>
               <PlayerRow
@@ -224,11 +226,5 @@ const styles = StyleSheet.create({
   },
   players: {
     gap: spacing.xxs,
-  },
-  playersHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xxs,
   },
 });

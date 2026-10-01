@@ -14,7 +14,7 @@ em volta do mesmo aparelho).
 - **Modo online:** sala com código, lobby, entrada durante a partida, verificação automática da música
   (Musixmatch, pelo servidor), “primeiro palpite vale”, votação *Novo palpite × Nova palavra*, pedido
   coletivo de finalização por maioria, transferência automática de host, reconexão e pódio animado.
-- **Modo local:** jogadores no mesmo aparelho, marcação de quem acertou, pular palavra e pódio.
+- **Modo local:** jogadores no mesmo aparelho; toque no nome de quem acertou e em “Próxima palavra”, pule palavras e veja o pódio.
 - **Regra central:** uma palavra só vira **rodada** quando recebe pelo menos um palpite verificado.
   Palavra pulada sem tentativa não conta; palavra com tentativa conta uma única vez.
 

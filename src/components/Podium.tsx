@@ -15,6 +15,7 @@ import { buildPodium, type PodiumTier, type Rankable } from '@/utils/ranking';
 
 import { AppText } from './AppText';
 import { Avatar } from './Avatar';
+import { Gradient } from './Gradient';
 import { Icon } from './Icon';
 
 type Props<T extends Rankable> = {
@@ -23,6 +24,7 @@ type Props<T extends Rankable> = {
 };
 
 const STEP_HEIGHT: Record<number, number> = { 1: 150, 2: 112, 3: 84 };
+const STEP_COLOR: Record<number, string> = { 1: colors.gold, 2: colors.silver, 3: colors.bronze };
 // Ordem de entrada: 3º, depois 2º e por último o 1º lugar.
 const STEP_DELAY: Record<number, number> = { 3: 150, 2: 550, 1: 950 };
 
@@ -50,7 +52,7 @@ export function Podium<T extends Rankable>({ players, highlightId }: Props<T>) {
               <AppText variant="headline" color={colors.onPrimarySecondary} style={styles.restPosition}>
                 {ordinal(entry.position)}
               </AppText>
-              <Avatar name={entry.name} size={34} tone="white" />
+              <Avatar name={entry.name} size={34} ringColor={colors.onPrimarySurfaceStrong} />
               <AppText variant="headline" color={colors.white} numberOfLines={1} style={styles.restName}>
                 {entry.name}
               </AppText>
@@ -94,12 +96,7 @@ function Step<T extends Rankable>({ tier, highlightId }: { tier: PodiumTier<T>; 
         <View style={styles.avatars}>
           {tier.players.slice(0, 3).map((player, index) => (
             <View key={player.id} style={index > 0 ? styles.avatarOverlap : null}>
-              <Avatar
-                name={player.name}
-                size={isFirst ? 60 : 48}
-                tone="white"
-                ringColor={tier.players.length > 1 ? colors.primaryDeep : undefined}
-              />
+              <Avatar name={player.name} size={isFirst ? 60 : 48} ringColor={colors.white} />
             </View>
           ))}
         </View>
@@ -116,12 +113,9 @@ function Step<T extends Rankable>({ tier, highlightId }: { tier: PodiumTier<T>; 
           {formatPoints(score)}
         </AppText>
       </Animated.View>
-      <Animated.View style={[styles.step, isFirst ? styles.stepFirst : styles.stepOther, stepStyle]}>
-        <AppText
-          variant={isFirst ? 'largeTitle' : 'title2'}
-          weight="heavy"
-          color={isFirst ? colors.primary : colors.white}
-          align="center">
+      <Animated.View style={[styles.step, { backgroundColor: STEP_COLOR[tier.position] }, stepStyle]}>
+        {isFirst ? <Gradient name="gold" direction="vertical" style={StyleSheet.absoluteFill} /> : null}
+        <AppText variant={isFirst ? 'largeTitle' : 'title2'} weight="heavy" color={colors.primaryDeep} align="center">
           {ordinal(tier.position)}
         </AppText>
       </Animated.View>
@@ -164,12 +158,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: spacing.sm,
     overflow: 'hidden',
-  },
-  stepFirst: {
-    backgroundColor: colors.white,
-  },
-  stepOther: {
-    backgroundColor: colors.onPrimarySurfaceStrong,
   },
   rest: {
     gap: spacing.xs,

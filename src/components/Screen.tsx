@@ -13,9 +13,11 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { colors, maxContentWidth, spacing } from '@/theme';
 
+import { Backdrop } from './Gradient';
+
 type Props = {
   children: ReactNode;
-  /** `light`: fundo claro com texto escuro. `purple`: fundo roxo com texto branco. */
+  /** `light`: degradê lilás com texto escuro. `purple`: degradê roxo com texto branco. */
   tone?: 'light' | 'white' | 'purple';
   scroll?: boolean;
   /** Conteúdo fixo no rodapé (ex.: botões principais). */
@@ -68,6 +70,7 @@ export function Screen({
 
   return (
     <View style={[styles.flex, { backgroundColor: backgrounds[tone] }]}>
+      {tone === 'white' ? null : <Backdrop tone={tone} />}
       <StatusBar style={tone === 'purple' ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex} edges={edges}>
         {keyboard ? (

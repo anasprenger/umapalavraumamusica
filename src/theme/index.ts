@@ -1,7 +1,7 @@
 import type { ViewStyle } from 'react-native';
 
-export { avatarPalette, colors } from './colors';
-export type { ColorName } from './colors';
+export { avatarPalette, colors, gradients } from './colors';
+export type { ColorName, GradientName } from './colors';
 export { fontFor, textVariants } from './typography';
 export type { FontWeight, TextVariant } from './typography';
 

@@ -5,7 +5,7 @@ import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale, Pulse } from '@/animations';
-import { AppText, CountdownNumber, HighlightedExcerpt, Icon, LogoMark, ProgressBar, SearchSources } from '@/components';
+import { AppText, Backdrop, CountdownNumber, HighlightedExcerpt, Icon, LogoMark, ProgressBar, SearchSources } from '@/components';
 import { useCountdown } from '@/hooks/useCountdown';
 import { haptic } from '@/services/haptics';
 import { colors, maxContentWidth, radii, spacing } from '@/theme';
@@ -36,6 +36,7 @@ export function PhaseOverlay({ snapshot, deadlineLocal, onVote }: Props) {
 
   return (
     <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(220)} style={[StyleSheet.absoluteFill, styles.overlay]}>
+      <Backdrop tone="purple" />
       <StatusBar style="light" />
       <SafeAreaView style={styles.safe}>
         <Animated.View key={status === 'countdown' ? 'correct' : status} entering={FadeIn.duration(260)} style={styles.stage}>

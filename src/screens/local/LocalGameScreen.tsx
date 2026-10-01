@@ -3,24 +3,38 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { enter, exit } from '@/animations';
-import { AppText, Button, Card, Header, IconButton, Pill, Scoreboard, Screen, WordDisplay } from '@/components';
+import { enter, PressableScale } from '@/animations';
+import {
+  AppText,
+  Button,
+  Card,
+  Header,
+  Icon,
+  IconButton,
+  Pill,
+  PlayerRow,
+  Screen,
+  SectionTitle,
+  WordDisplay,
+} from '@/components';
 import { displayRoundNumber } from '@/game/local/reducer';
 import { useLocalGame } from '@/hooks/useLocalGame';
 import { confirmAction } from '@/services/dialogs';
 import { haptic } from '@/services/haptics';
-import { colors, spacing } from '@/theme';
+import { colors, radii, spacing } from '@/theme';
 
 import { AddPlayerSheet } from './AddPlayerSheet';
-import { LocalCelebration } from './LocalCelebration';
-import { WinnerSheet } from './WinnerSheet';
 
-/** Partida local: a palavra na tela, e os jogadores decidem presencialmente quem acertou. */
+/**
+ * Partida local: a palavra na tela e os jogadores decidem presencialmente quem acertou.
+ * Para dar o ponto, basta tocar no nome de quem acertou e em "Próxima palavra".
+ */
 export function LocalGameScreen() {
   const game = useLocalGame();
   const { state, hydrated } = game;
-  const [winnerOpen, setWinnerOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  // A escolha vale só para a palavra em que foi feita.
+  const [pick, setPick] = useState<{ word: string; playerId: string } | null>(null);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -28,17 +42,23 @@ export function LocalGameScreen() {
     else if (state.phase === 'setup') router.replace('/local');
   }, [hydrated, state.phase]);
 
+  const selectedId = pick && pick.word === state.currentWord ? pick.playerId : null;
+  const selected = state.players.find((player) => player.id === selectedId) ?? null;
+  const leaderScore = Math.max(0, ...state.players.map((player) => player.score));
+
   const leave = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
   const finish = async () => {
     const ok = await confirmAction({
       title: 'Finalizar jogo?',
-      message: 'A partida termina agora e o pódio será exibido.',
+      message: selected
+        ? `O ponto de ${selected.name} nesta palavra será contado e o pódio será exibido.`
+        : 'A partida termina agora e o pódio será exibido.',
       confirmLabel: 'Finalizar',
     });
     if (ok) {
       haptic('success');
-      game.finish();
+      game.finish(selected?.id);
     }
   };
 
@@ -46,10 +66,7 @@ export function LocalGameScreen() {
     return <Screen>{null}</Screen>;
   }
 
-  if (state.phase === 'celebrating') {
-    return <LocalCelebration onNext={game.nextWord} onFinish={finish} />;
-  }
-
+  const currentWord = state.currentWord;
   const counted = state.currentAttempts > 0;
 
   return (
@@ -68,7 +85,18 @@ export function LocalGameScreen() {
       }
       footer={
         <>
-          <Button title="Alguém acertou!" icon="musical-notes" onPress={() => setWinnerOpen(true)} />
+          <Button
+            title="Próxima palavra"
+            icon="arrow-forward"
+            iconPosition="right"
+            disabled={!selected}
+            accessibilityHint="Dá o ponto para o jogador escolhido e mostra outra palavra."
+            onPress={() => {
+              if (!selected) return;
+              haptic('success');
+              game.markWinner(selected.id);
+            }}
+          />
           <View style={styles.row}>
             <Button
               title="Tentativa errada"
@@ -98,44 +126,62 @@ export function LocalGameScreen() {
       }>
       <View style={styles.content}>
         <Animated.View entering={enter.up}>
-          <WordDisplay word={state.currentWord} />
+          <WordDisplay word={currentWord} animated={false} />
         </Animated.View>
 
         <View style={styles.status}>
-          {counted ? (
-            <Animated.View key="counted" entering={enter.pop} exiting={exit.fade}>
-              <Pill
-                icon="checkmark-circle"
-                label={`${state.currentAttempts} ${state.currentAttempts === 1 ? 'tentativa' : 'tentativas'} · já conta como rodada`}
-              />
-            </Animated.View>
+          {selected ? (
+            <Pill icon="star" label={`+1 ponto para ${selected.name}`} tone="gold" />
+          ) : counted ? (
+            <Pill
+              icon="checkmark-circle"
+              tone="success"
+              label={`${state.currentAttempts} ${state.currentAttempts === 1 ? 'tentativa' : 'tentativas'} · já conta como rodada`}
+            />
           ) : (
-            <Animated.View key="waiting" entering={enter.fade} exiting={exit.fade}>
-              <AppText variant="footnote" color={colors.inkTertiary} align="center">
-                Cantem! Se ninguém tentar, pular não conta como rodada.
-              </AppText>
-            </Animated.View>
+            <AppText variant="footnote" color={colors.inkTertiary} align="center">
+              Cantem! Se ninguém tentar, pular não conta como rodada.
+            </AppText>
           )}
         </View>
 
-        <Card style={styles.scores}>
-          <AppText variant="overline" color={colors.inkTertiary}>
-            PLACAR
+        <Card style={styles.players}>
+          <SectionTitle icon="musical-notes" title="QUEM ACERTOU?" />
+          <AppText variant="footnote" color={colors.inkSecondary}>
+            Toque no nome de quem acertou e depois em Próxima palavra.
           </AppText>
-          <Scoreboard players={state.players} />
+          <View style={styles.list}>
+            {state.players.map((player) => {
+              const isSelected = player.id === selectedId;
+              const leads = leaderScore > 0 && player.score === leaderScore;
+              return (
+                <PressableScale
+                  key={player.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`${player.name}, ${player.score} ${player.score === 1 ? 'ponto' : 'pontos'}`}
+                  onPress={() => {
+                    haptic('selection');
+                    setPick(isSelected ? null : { word: currentWord, playerId: player.id });
+                  }}
+                  style={[styles.option, isSelected ? styles.optionSelected : null]}>
+                  <PlayerRow
+                    name={player.name}
+                    score={player.score}
+                    statusText={leads ? 'Na liderança' : undefined}
+                    trailing={
+                      <View style={[styles.radio, isSelected ? styles.radioSelected : null]}>
+                        {isSelected ? <Icon name="checkmark" size={16} color={colors.white} /> : null}
+                      </View>
+                    }
+                  />
+                </PressableScale>
+              );
+            })}
+          </View>
         </Card>
       </View>
 
-      <WinnerSheet
-        visible={winnerOpen}
-        players={state.players}
-        onClose={() => setWinnerOpen(false)}
-        onConfirm={(playerId) => {
-          setWinnerOpen(false);
-          haptic('success');
-          game.markWinner(playerId);
-        }}
-      />
       <AddPlayerSheet visible={addOpen} onClose={() => setAddOpen(false)} onAdd={game.addPlayer} />
     </Screen>
   );
@@ -151,8 +197,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scores: {
+  players: {
     gap: spacing.xs,
+  },
+  list: {
+    gap: spacing.xs,
+    marginTop: spacing.xxs,
+  },
+  option: {
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: colors.separator,
+  },
+  optionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.lilacSoft,
+  },
+  radio: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: colors.lilacStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   row: {
     flexDirection: 'row',

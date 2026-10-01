@@ -3,6 +3,8 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, radii, shadows, spacing } from '@/theme';
 
+import { Gradient } from './Gradient';
+
 type Props = {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -17,7 +19,7 @@ const backgrounds = {
   glass: colors.onPrimarySurface,
 } as const;
 
-/** Cartão limpo com cantos arredondados e sombra suave. */
+/** Cartão limpo com cantos arredondados e sombra suave (o roxo vem em degradê). */
 export function Card({ children, style, tone = 'white', padded = true }: Props) {
   return (
     <View
@@ -25,9 +27,11 @@ export function Card({ children, style, tone = 'white', padded = true }: Props) 
         styles.base,
         { backgroundColor: backgrounds[tone] },
         tone === 'white' ? shadows.soft : null,
+        tone === 'purple' ? styles.glow : null,
         padded ? styles.padded : null,
         style,
       ]}>
+      {tone === 'purple' ? <Gradient name="word" style={[StyleSheet.absoluteFill, styles.fill]} /> : null}
       {children}
     </View>
   );
@@ -39,5 +43,11 @@ const styles = StyleSheet.create({
   },
   padded: {
     padding: spacing.lg,
+  },
+  fill: {
+    borderRadius: radii.xl,
+  },
+  glow: {
+    boxShadow: '0px 12px 26px rgba(74, 35, 176, 0.3)',
   },
 });

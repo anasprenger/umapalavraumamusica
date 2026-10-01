@@ -7,7 +7,7 @@ export const LOCAL_MAX_PLAYERS = 20;
 export const PLAYER_NAME_MAX = 24;
 
 export const initialLocalState: LocalGameState = {
-  version: 1,
+  version: 2,
   phase: 'setup',
   players: [],
   usedWords: [],
@@ -15,7 +15,6 @@ export const initialLocalState: LocalGameState = {
   currentAttempts: 0,
   roundsPlayed: 0,
   currentRoundNumber: null,
-  lastWinnerId: null,
   endReason: null,
   nextPlayerOrder: 1,
 };
@@ -48,6 +47,21 @@ function withAttempt(state: LocalGameState): LocalGameState {
   }
   const roundsPlayed = state.roundsPlayed + 1;
   return { ...state, currentAttempts: 1, roundsPlayed, currentRoundNumber: roundsPlayed };
+}
+
+/** Conta a palavra atual como rodada e dá 1 ponto para quem acertou. */
+function withWinner(state: LocalGameState, playerId: string): LocalGameState {
+  const counted = withAttempt(state);
+  return {
+    ...counted,
+    players: counted.players.map((player) =>
+      player.id === playerId ? { ...player, score: player.score + 1 } : player,
+    ),
+  };
+}
+
+function hasPlayer(state: LocalGameState, playerId: string): boolean {
+  return state.players.some((player) => player.id === playerId);
 }
 
 /** Coloca uma nova palavra em jogo, ou encerra se o banco acabou. */
@@ -95,7 +109,6 @@ export function localGameReducer(state: LocalGameState, action: LocalAction): Lo
         ...state,
         usedWords: [],
         roundsPlayed: 0,
-        lastWinnerId: null,
         endReason: null,
         players: state.players.map((player) => ({ ...player, score: 0 })),
       };
@@ -108,23 +121,9 @@ export function localGameReducer(state: LocalGameState, action: LocalAction): Lo
     }
 
     case 'MARK_WINNER': {
-      if (state.phase !== 'playing') return state;
-      if (!state.players.some((player) => player.id === action.playerId)) return state;
-      const counted = withAttempt(state);
-      return {
-        ...counted,
-        phase: 'celebrating',
-        lastWinnerId: action.playerId,
-        players: counted.players.map((player) =>
-          player.id === action.playerId ? { ...player, score: player.score + 1 } : player,
-        ),
-      };
-    }
-
-    case 'NEXT_WORD': {
-      if (state.phase !== 'celebrating') return state;
+      if (state.phase !== 'playing' || !hasPlayer(state, action.playerId)) return state;
       if (action.word !== null && isUsed(state, action.word)) return state;
-      return withNewWord({ ...state, lastWinnerId: null }, action.word);
+      return withNewWord(withWinner(state, action.playerId), action.word);
     }
 
     case 'SKIP_WORD': {
@@ -136,30 +135,17 @@ export function localGameReducer(state: LocalGameState, action: LocalAction): Lo
     }
 
     case 'FINISH': {
-      if (state.phase !== 'playing' && state.phase !== 'celebrating') return state;
-      return { ...state, phase: 'finished', endReason: 'players' };
-    }
-
-    case 'PLAY_AGAIN': {
-      if (state.phase !== 'finished') return state;
-      const reset: LocalGameState = {
-        ...state,
-        usedWords: [],
-        roundsPlayed: 0,
-        currentRoundNumber: null,
-        currentAttempts: 0,
-        lastWinnerId: null,
-        endReason: null,
-        players: state.players.map((player) => ({ ...player, score: 0 })),
-      };
-      return withNewWord(reset, action.word);
+      if (state.phase !== 'playing') return state;
+      const scored = action.winnerId && hasPlayer(state, action.winnerId) ? withWinner(state, action.winnerId) : state;
+      return { ...scored, phase: 'finished', endReason: 'players' };
     }
 
     case 'RESET':
       return initialLocalState;
 
     case 'HYDRATE':
-      return action.state.version === 1 ? action.state : state;
+      // Partidas salvas por versões antigas (com tela de comemoração) são descartadas.
+      return action.state.version === initialLocalState.version ? action.state : state;
 
     default:
       return state;

@@ -44,11 +44,27 @@ describe('configuração do modo local', () => {
 });
 
 describe('contagem de rodadas no modo local', () => {
-  it('palavra acertada conta como rodada e dá 1 ponto', () => {
-    const state = run([{ type: 'MARK_WINNER', playerId: 'j' }], started);
-    expect(state.phase).toBe('celebrating');
+  it('acerto dá 1 ponto, conta a rodada e já passa para a próxima palavra', () => {
+    const state = run([{ type: 'MARK_WINNER', playerId: 'j', word: 'casa' }], started);
+    expect(state.phase).toBe('playing');
+    expect(state.currentWord).toBe('casa');
+    expect(state.currentAttempts).toBe(0);
     expect(state.roundsPlayed).toBe(1);
     expect(state.players.find((p) => p.id === 'j')?.score).toBe(1);
+    expect(displayRoundNumber(state)).toBe(2);
+  });
+
+  it('acerto de jogador inexistente ou com palavra repetida é ignorado', () => {
+    expect(run([{ type: 'MARK_WINNER', playerId: 'x', word: 'casa' }], started)).toBe(started);
+    expect(run([{ type: 'MARK_WINNER', playerId: 'j', word: 'Amor' }], started)).toBe(started);
+  });
+
+  it('acerto na última palavra do banco conta o ponto e encerra', () => {
+    const state = run([{ type: 'MARK_WINNER', playerId: 'a', word: null }], started);
+    expect(state.phase).toBe('finished');
+    expect(state.endReason).toBe('words_exhausted');
+    expect(state.roundsPlayed).toBe(1);
+    expect(state.players.find((p) => p.id === 'a')?.score).toBe(1);
   });
 
   it('palavra pulada sem tentativa NÃO conta como rodada', () => {
@@ -67,28 +83,26 @@ describe('contagem de rodadas no modo local', () => {
 
   it('a mesma palavra nunca conta duas vezes', () => {
     const state = run(
-      [{ type: 'REGISTER_ATTEMPT' }, { type: 'REGISTER_ATTEMPT' }, { type: 'MARK_WINNER', playerId: 'a' }],
+      [{ type: 'REGISTER_ATTEMPT' }, { type: 'REGISTER_ATTEMPT' }, { type: 'MARK_WINNER', playerId: 'a', word: 'casa' }],
       started,
     );
     expect(state.roundsPlayed).toBe(1);
-    expect(state.currentAttempts).toBe(3);
-    expect(displayRoundNumber(state)).toBe(1);
+    expect(state.players.find((p) => p.id === 'a')?.score).toBe(1);
   });
 
   it('contador de rodadas acompanha várias palavras', () => {
     const state = run(
       [
-        { type: 'MARK_WINNER', playerId: 'a' }, // rodada 1
-        { type: 'NEXT_WORD', word: 'casa' },
+        { type: 'MARK_WINNER', playerId: 'a', word: 'casa' }, // rodada 1
         { type: 'SKIP_WORD', word: 'sol' }, // não conta
         { type: 'REGISTER_ATTEMPT' }, // rodada 2
         { type: 'SKIP_WORD', word: 'noite' },
-        { type: 'MARK_WINNER', playerId: 'm' }, // rodada 3
+        { type: 'MARK_WINNER', playerId: 'm', word: 'lua' }, // rodada 3
       ],
       started,
     );
     expect(state.roundsPlayed).toBe(3);
-    expect(state.usedWords).toEqual(['amor', 'casa', 'sol', 'noite']);
+    expect(state.usedWords).toEqual(['amor', 'casa', 'sol', 'noite', 'lua']);
     expect(state.players.map((p) => p.score)).toEqual([1, 0, 1]);
   });
 
@@ -107,15 +121,29 @@ describe('contagem de rodadas no modo local', () => {
 describe('finalização e nova partida', () => {
   it('finaliza a qualquer momento durante o jogo', () => {
     expect(run([{ type: 'FINISH' }], started).phase).toBe('finished');
-    expect(run([{ type: 'MARK_WINNER', playerId: 'a' }, { type: 'FINISH' }], started).phase).toBe('finished');
+    const afterPoint = run([{ type: 'MARK_WINNER', playerId: 'a', word: 'casa' }, { type: 'FINISH' }], started);
+    expect(afterPoint.phase).toBe('finished');
+    expect(afterPoint.roundsPlayed).toBe(1);
   });
 
-  it('jogar novamente zera pontos e palavras, mantendo os jogadores', () => {
-    const finished = run([{ type: 'MARK_WINNER', playerId: 'a' }, { type: 'FINISH' }], started);
-    const again = run([{ type: 'PLAY_AGAIN', word: 'amor' }], finished);
-    expect(again.phase).toBe('playing');
-    expect(again.roundsPlayed).toBe(0);
-    expect(again.usedWords).toEqual(['amor']);
-    expect(again.players.map((p) => p.score)).toEqual([0, 0, 0]);
+  it('finalizar com alguém escolhido conta o acerto da palavra atual uma única vez', () => {
+    const state = run([{ type: 'REGISTER_ATTEMPT' }, { type: 'FINISH', winnerId: 'm' }], started);
+    expect(state.phase).toBe('finished');
+    expect(state.roundsPlayed).toBe(1);
+    expect(state.players.find((p) => p.id === 'm')?.score).toBe(1);
+    expect(run([{ type: 'FINISH', winnerId: 'x' }], started).players.every((p) => p.score === 0)).toBe(true);
+  });
+
+  it('ao zerar depois do fim, os nomes dos jogadores também somem', () => {
+    const finished = run([{ type: 'MARK_WINNER', playerId: 'a', word: 'casa' }, { type: 'FINISH' }], started);
+    const fresh = run([{ type: 'RESET' }], finished);
+    expect(fresh).toEqual(initialLocalState);
+    expect(fresh.players).toEqual([]);
+  });
+
+  it('partidas salvas por versões antigas são descartadas', () => {
+    const legacy = { ...started, version: 1, phase: 'celebrating' } as unknown as LocalGameState;
+    expect(run([{ type: 'HYDRATE', state: legacy }])).toBe(initialLocalState);
+    expect(run([{ type: 'HYDRATE', state: started }])).toBe(started);
   });
 });

@@ -14,13 +14,13 @@ type LocalGameApi = {
   removePlayer: (id: string) => void;
   start: () => void;
   registerAttempt: () => void;
+  /** Ponto para quem acertou e já sorteia a próxima palavra. */
   markWinner: (playerId: string) => void;
-  nextWord: () => void;
   skipWord: () => void;
-  finish: () => void;
-  playAgain: () => void;
-  /** Volta para a configuração mantendo os nomes dos jogadores. */
-  backToSetup: () => void;
+  /** Encerra a partida; com `winnerId`, conta antes o acerto da palavra atual. */
+  finish: (winnerId?: string | null) => void;
+  /** Zera a partida e os nomes dos jogadores. */
+  reset: () => void;
 };
 
 const LocalGameContext = createContext<LocalGameApi | null>(null);
@@ -38,7 +38,7 @@ export function LocalGameProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     storage.loadLocalGame<LocalGameState>().then((saved) => {
       if (cancelled) return;
-      if (saved && saved.version === 1) dispatch({ type: 'HYDRATE', state: saved });
+      if (saved) dispatch({ type: 'HYDRATE', state: saved });
       setHydrated(true);
     });
     return () => {
@@ -64,18 +64,10 @@ export function LocalGameProvider({ children }: { children: ReactNode }) {
     removePlayer: (id) => dispatch({ type: 'REMOVE_PLAYER', id }),
     start: () => dispatch({ type: 'START', word: pickRandomWord([]) }),
     registerAttempt: () => dispatch({ type: 'REGISTER_ATTEMPT' }),
-    markWinner: (playerId) => dispatch({ type: 'MARK_WINNER', playerId }),
-    nextWord: () => dispatch({ type: 'NEXT_WORD', word: draw() }),
+    markWinner: (playerId) => dispatch({ type: 'MARK_WINNER', playerId, word: draw() }),
     skipWord: () => dispatch({ type: 'SKIP_WORD', word: draw() }),
-    finish: () => dispatch({ type: 'FINISH' }),
-    playAgain: () => dispatch({ type: 'PLAY_AGAIN', word: pickRandomWord([]) }),
-    backToSetup: () => {
-      const players = state.players.map((player) => ({ ...player, score: 0 }));
-      dispatch({
-        type: 'HYDRATE',
-        state: { ...initialLocalState, players, nextPlayerOrder: state.nextPlayerOrder },
-      });
-    },
+    finish: (winnerId) => dispatch({ type: 'FINISH', winnerId }),
+    reset: () => dispatch({ type: 'RESET' }),
   };
 
   return <LocalGameContext.Provider value={api}>{children}</LocalGameContext.Provider>;

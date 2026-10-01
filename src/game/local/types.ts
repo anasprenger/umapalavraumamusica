@@ -6,13 +6,13 @@ export type LocalPlayer = {
 };
 
 /**
- * Estados do modo local:
- * setup → playing → (celebrating → playing)* → finished
+ * Estados do modo local: setup → playing → finished.
+ * Ao encerrar, os nomes só ficam até sair do pódio (depois tudo zera).
  */
-export type LocalPhase = 'setup' | 'playing' | 'celebrating' | 'finished';
+export type LocalPhase = 'setup' | 'playing' | 'finished';
 
 export type LocalGameState = {
-  version: 1;
+  version: 2;
   phase: LocalPhase;
   players: LocalPlayer[];
   /** Palavras já sorteadas nesta partida (nunca se repetem). */
@@ -24,7 +24,6 @@ export type LocalGameState = {
   roundsPlayed: number;
   /** Número da rodada atribuído à palavra atual, quando ela já foi contabilizada. */
   currentRoundNumber: number | null;
-  lastWinnerId: string | null;
   endReason: 'players' | 'words_exhausted' | null;
   nextPlayerOrder: number;
 };
@@ -35,10 +34,11 @@ export type LocalAction =
   | { type: 'START'; word: string | null }
   /** Uma tentativa foi feita e não era a música certa. */
   | { type: 'REGISTER_ATTEMPT' }
-  | { type: 'MARK_WINNER'; playerId: string }
-  | { type: 'NEXT_WORD'; word: string | null }
+  /** Ponto para quem acertou e já entra a próxima palavra (sem tela de comemoração). */
+  | { type: 'MARK_WINNER'; playerId: string; word: string | null }
   | { type: 'SKIP_WORD'; word: string | null }
-  | { type: 'FINISH' }
-  | { type: 'PLAY_AGAIN'; word: string | null }
+  /** Encerra; com `winnerId`, o acerto da palavra atual é contado antes. */
+  | { type: 'FINISH'; winnerId?: string | null }
+  /** Zera tudo, inclusive os nomes dos jogadores. */
   | { type: 'RESET' }
   | { type: 'HYDRATE'; state: LocalGameState };

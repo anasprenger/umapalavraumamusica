@@ -16,8 +16,9 @@ type Props = {
 
 /** Círculo com as iniciais do jogador. */
 export function Avatar({ name, size = 40, dimmed = false, tone = 'color', ringColor }: Props) {
-  const background = tone === 'white' ? colors.white : avatarPalette[hashIndex(name, avatarPalette.length)];
-  const foreground = tone === 'white' ? colors.primaryDark : colors.white;
+  const swatch = avatarPalette[hashIndex(name, avatarPalette.length)];
+  const background = tone === 'white' ? colors.white : swatch.bg;
+  const foreground = tone === 'white' ? colors.primaryDark : swatch.fg;
   return (
     <View
       style={[

@@ -13,6 +13,7 @@ import {
   Pill,
   Scoreboard,
   Screen,
+  SectionTitle,
   TextField,
   WordDisplay,
 } from '@/components';
@@ -189,7 +190,7 @@ export function GameView({ room, snapshot, perform, notify, onLeave, toast }: Pr
             </Animated.View>
           ) : word?.has_attempt ? (
             <Animated.View entering={enter.pop} exiting={exit.fade}>
-              <Pill icon="checkmark-circle" label="Esta palavra já conta como rodada" />
+              <Pill icon="checkmark-circle" label="Esta palavra já conta como rodada" tone="success" />
             </Animated.View>
           ) : (
             <AppText variant="footnote" color={colors.inkTertiary} align="center">
@@ -199,9 +200,7 @@ export function GameView({ room, snapshot, perform, notify, onLeave, toast }: Pr
         </View>
 
         <Card style={styles.scores}>
-          <AppText variant="overline" color={colors.inkTertiary}>
-            PLACAR
-          </AppText>
+          <SectionTitle icon="trophy" title="PLACAR" />
           <Scoreboard
             players={snapshot.players.map((player) => ({
               id: player.id,

@@ -1,22 +1,31 @@
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { enter, exit, layout } from '@/animations';
-import { AppText, Button, Card, Header, IconButton, PlayerRow, Screen, TextField } from '@/components';
+import { AppText, Avatar, Button, Card, Header, IconButton, PlayerRow, Screen, SectionTitle, TextField } from '@/components';
 import { LOCAL_MIN_PLAYERS, PLAYER_NAME_MAX } from '@/game/local/reducer';
 import { useLocalGame } from '@/hooks/useLocalGame';
 import { haptic } from '@/services/haptics';
 import { colors, spacing } from '@/theme';
 import { formatPlayers } from '@/utils/format';
 
+const SAMPLE_NAMES = ['Ana', 'João', 'Maria', 'Pedro'];
+
 /** Configuração do jogo local: adicionar os jogadores (mínimo 2). */
 export function LocalSetupScreen() {
-  const { state, addPlayer, removePlayer, start, backToSetup } = useLocalGame();
+  const { state, hydrated, addPlayer, removePlayer, start } = useLocalGame();
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
+
+  // Uma partida em andamento ou encerrada tem a própria tela.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (state.phase === 'playing') router.replace('/local/game');
+    else if (state.phase === 'finished') router.replace('/local/podium');
+  }, [hydrated, state.phase]);
 
   const players = state.players;
   const missing = Math.max(0, LOCAL_MIN_PLAYERS - players.length);
@@ -35,8 +44,6 @@ export function LocalSetupScreen() {
   };
 
   const begin = () => {
-    // Se chegou aqui com uma partida antiga carregada, recomeça a partir da configuração.
-    if (state.phase !== 'setup') backToSetup();
     start();
     haptic('success');
     router.replace('/local/game');
@@ -81,9 +88,7 @@ export function LocalSetupScreen() {
 
         {players.length > 0 ? (
           <Card style={styles.list}>
-            <AppText variant="overline" color={colors.inkTertiary}>
-              JOGADORES
-            </AppText>
+            <SectionTitle icon="people" title="JOGADORES" />
             {players.map((player) => (
               <Animated.View key={player.id} entering={enter.up} exiting={exit.fade} layout={layout}>
                 <PlayerRow
@@ -102,8 +107,15 @@ export function LocalSetupScreen() {
           </Card>
         ) : (
           <Animated.View entering={enter.fade} style={styles.empty}>
-            <AppText variant="subhead" color={colors.inkTertiary} align="center">
-              {'Ex.: Ana, João, Maria, Pedro…'}
+            <View style={styles.sample}>
+              {SAMPLE_NAMES.map((sample, index) => (
+                <View key={sample} style={index > 0 ? styles.sampleOverlap : null}>
+                  <Avatar name={sample} size={52} ringColor={colors.white} />
+                </View>
+              ))}
+            </View>
+            <AppText variant="subhead" color={colors.inkSecondary} align="center">
+              {`Ex.: ${SAMPLE_NAMES.join(', ')}…`}
             </AppText>
           </Animated.View>
         )}
@@ -121,5 +133,13 @@ const styles = StyleSheet.create({
   },
   empty: {
     paddingVertical: spacing.xxl,
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  sample: {
+    flexDirection: 'row',
+  },
+  sampleOverlap: {
+    marginLeft: -12,
   },
 });
