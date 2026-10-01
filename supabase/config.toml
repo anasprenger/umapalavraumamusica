@@ -1,0 +1,41 @@
+# Configuração do Supabase CLI para desenvolvimento local (`supabase start`).
+# Em produção, as mesmas opções são ajustadas no painel do projeto (ver docs/CONFIGURACAO.md).
+project_id = "uma-palavra-uma-musica"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[db.seed]
+enabled = false
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:8081"
+# O app usa login anônimo: cada aparelho ganha uma identidade estável sem cadastro.
+enable_anonymous_sign_ins = true
+enable_signup = true
+
+[edge_runtime]
+enabled = true
+# per_worker mantém o worker vivo para concluir a verificação em segundo plano.
+policy = "per_worker"
+
+[functions.submit-guess]
+enabled = true
+# O token é validado dentro da função (auth.getUser), compatível com as novas chaves JWT.
+verify_jwt = false
